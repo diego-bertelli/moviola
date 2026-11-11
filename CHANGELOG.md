@@ -28,6 +28,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Un archivo del proyecto reemplazado por otro mucho más corto se avisa en vez de abrir clips que se salen del archivo.
 - Los diálogos de archivos del modo navegador (tkinter) corren en el hilo principal y de a uno.
 - Al cancelar una descarga no quedan pedazos (`.part`) en la carpeta.
+- Sumar música en otra pista (o mover algo en V1) después de transcribir avisaba que «el video cambió» aunque las frases
+  siguieran bien: ahora solo cuenta la pista de voz (A1). Los proyectos guardados con la 1.0 se reconocen.
 
 ### Cambiado
 - Instalada con el instalador, Moviola guarda ajustes, registro y caché en `%LOCALAPPDATA%\Moviola` (no dentro de la carpeta del programa).

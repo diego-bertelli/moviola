@@ -5,6 +5,10 @@ edit-by-text and karaoke subtitles (whisper.cpp), effects, transitions, batch pr
 MKV / GIF or audio only, in the original size, 9:16, 16:9 or 1:1. Everything runs on your machine: no accounts, no uploads.
 Licensed under GPL-3.0-or-later. Documentation is in Spanish.
 
+![Moviola: visor con subtítulos karaoke, panel «Editar por texto» y línea de tiempo con video, voz y música](docs/captura.png)
+
+**Descargar:** el instalador para Windows 10/11 está en [Releases](../../releases/latest).
+
 ---
 
 Editor de video y audio local para Windows. Ventana nativa, sin cuentas, sin nube: nada de lo que editás sale de tu computadora.

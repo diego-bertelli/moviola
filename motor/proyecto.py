@@ -748,11 +748,14 @@ class Proyecto:
 
     # ----------------------------------------------------------- subtitulos
 
-    def huella_linea(self):
-        """Una firma de COMO esta armada la linea de tiempo (que clip, de donde a donde, a que velocidad y donde empieza).
+    def huella_linea(self, todas=False):
+        """Una firma de COMO esta armada la pista de voz (A1: que clip, de donde a donde, a que velocidad y donde empieza). Las frases y las
+        palabras salen de A1, asi que solo cuenta esa pista: sumar musica en otra pista o mover algo en V1 no corre los subtitulos.
         Si cambia despues de transcribir, las frases pueden haber quedado corridas."""
         datos = []
         for pista in self.pistas:
+            if pista["id"] != "A1" and not todas:          # todas=True: como se calculaba hasta la 1.0 (para reconocer proyectos viejos)
+                continue
             tramos = []
             for c in pista["clips"]:
                 t = [c["fuente"], round(c["desde"], 4), round(c["hasta"], 4), round(c["inicio"], 4), c.get("velocidad", 1.0), bool(c.get("reversa"))]
@@ -1351,6 +1354,9 @@ class Proyecto:
         if sub:
             p.subtitulos = {"frases": list(sub.get("frases", [])), "estilo": _sub.limpiar_estilo(sub.get("estilo", {})), "huella": sub.get("huella", ""),
                             "palabras": list(sub.get("palabras", []))}
+            # un proyecto guardado con la 1.0 tiene la huella de TODAS las pistas: si coincide, las frases estan al dia
+            if p.subtitulos["huella"] and p.subtitulos["huella"] == p.huella_linea(todas=True):
+                p.subtitulos["huella"] = p.huella_linea()
         return p
 
 

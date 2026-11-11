@@ -212,7 +212,21 @@ def main():
     ok(os.path.normcase(carpeta) != os.path.normcase(RAIZ) and os.path.basename(carpeta) == "Moviola", "con la marca del instalador: %LOCALAPPDATA%\\Moviola", carpeta)
     ok(os.path.normcase(app._carpeta_de_datos()) == os.path.normcase(RAIZ), "sin la marca (portatil, desarrollo): al lado del programa")
 
-    print("=== 10. version ===")
+    print("=== 10. los subtitulos dependen solo de la pista de voz ===")
+    q = Proyecto.cargar_dict(copy.deepcopy(base), None)
+    q.subtitulos_poner([{"inicio": 0.5, "fin": 2.0, "texto": "hola"}])
+    musica = q.agregar_fuente(src, "audio", 6.0, None, 1)
+    q.agregar_audio(musica, 0.0)
+    ok(not q.subtitulos_desactualizados(), "sumar musica en otra pista no marca los subtitulos como desactualizados (antes si)")
+    q.borrar_rango(1.0, 2.0)
+    ok(q.subtitulos_desactualizados(), "cortar la voz si los marca")
+    vieja = Proyecto.cargar_dict(copy.deepcopy(base), None)
+    vieja.subtitulos_poner([{"inicio": 0.5, "fin": 2.0, "texto": "hola"}])
+    d = vieja.a_dict()
+    d["subtitulos"]["huella"] = vieja.huella_linea(todas=True)          # como lo guardaba la 1.0
+    ok(not Proyecto.cargar_dict(d, None).subtitulos_desactualizados(), "un proyecto guardado con la 1.0 abre con los subtitulos al dia")
+
+    print("=== 11. version ===")
     with open(os.path.join(RAIZ, "CHANGELOG.md"), encoding="utf-8") as f:
         ok("## [%s]" % app.VERSION in f.read(), "CHANGELOG.md tiene la seccion de la version %s" % app.VERSION)
 
