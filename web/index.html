@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<!-- Moviola
+     Copyright (C) 2026 Diego Bertelli y Claude (Anthropic, Claude Sonnet 5.5)
+     SPDX-License-Identifier: GPL-3.0-or-later
+     Este programa se distribuye SIN NINGUNA GARANTIA. Ver el archivo LICENSE. -->
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moviola — mesa de corte</title>
+<link rel="icon" type="image/png" href="logo-256.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<!-- ============ barra superior ============ -->
+<header id="barra">
+  <span class="marca" aria-label="Moviola"><img class="marca__logo" src="logo-256.png" alt="" width="32" height="32"><img class="marca__palabra" src="marca.png" alt="Moviola" height="40"></span>
+  <span class="barra__hilo" aria-hidden="true"></span>
+  <h1 id="nombre-archivo">Ningún video abierto</h1>
+  <p id="meta-archivo"></p>
+  <span id="marca-proyecto" class="marca-proyecto" hidden></span>
+  <button id="btn-abrir-barra" class="boton" type="button">Abrir…</button>
+  <button id="btn-guardar" class="boton" type="button" hidden title="Guardar el proyecto en su archivo (Ctrl+S)">Guardar</button>
+  <button id="btn-guardar-como" class="boton boton--fantasma" type="button" hidden title="Guardar el proyecto con otro nombre">Guardar como…</button>
+  <div class="acel">
+    <button id="btn-acel" class="boton boton--fantasma" type="button" aria-haspopup="true" aria-expanded="false"
+            title="Aceleración por GPU">Aceleración: <b id="acel-modo">CPU</b></button>
+    <div id="panel-acel" role="dialog" aria-label="Aceleración por GPU" hidden>
+      <p class="rotulo">Aceleración</p>
+      <div class="acel__opciones" role="radiogroup" aria-label="Qué usar para procesar el video">
+        <button type="button" role="radio" class="acel__op" data-modo="cpu" aria-checked="true">CPU</button>
+        <button type="button" role="radio" class="acel__op" data-modo="gpu" aria-checked="false">GPU</button>
+        <button type="button" role="radio" class="acel__op" data-modo="auto" aria-checked="false">Automático</button>
+      </div>
+      <p id="acel-titulo" class="acel__titulo">Comprobando la aceleración por GPU…</p>
+      <ul id="acel-lineas"></ul>
+      <p id="acel-efecto" class="acel__efecto"></p>
+      <p class="acel__nota">El cambio se aplica al abrir el próximo archivo.</p>
+      <button id="btn-acel-recomprobar" class="boton boton--chico" type="button">Volver a comprobar</button>
+    </div>
+  </div>
+  <button id="btn-acerca" class="boton boton--fantasma boton--icono" type="button" title="Acerca de Moviola (F1)" aria-label="Acerca de Moviola">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg></button>
+  <button id="btn-exportar" class="boton boton--primario" type="button" disabled
+          title="Guardar lo editado como un archivo nuevo (Ctrl+E)">Exportar…</button>
+</header>
+
+<!-- ============ avisos ============ -->
+<div id="avisos" role="status" aria-live="polite"></div>
+
+<!-- ============ espacio de trabajo: herramientas | visor y transporte | propiedades ============ -->
+<div id="espacio">
+
+  <!-- herramientas (riel izquierdo): solo con un proyecto abierto -->
+  <section id="edicion" aria-label="Herramientas de edición" hidden>
+    <div id="herramientas">
+      <div class="herr__grupo" role="group" aria-label="Marcar un tramo">
+        <p class="herr__titulo">Marcar</p>
+        <button id="btn-entrada" class="herr" type="button" title="Marcar entrada en el cursor (I)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5v16h4"/><path d="M11 12h9"/><path d="M17 9l3 3-3 3"/></svg>
+          <span class="herr__txt">Entrada</span></button>
+        <button id="btn-salida" class="herr" type="button" title="Marcar salida en el cursor (O)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4v16h-4"/><path d="M4 12h9"/><path d="M10 9l3 3-3 3"/></svg>
+          <span class="herr__txt">Salida</span></button>
+        <button id="btn-limpiar-marcas" class="herr" type="button" title="Sacar las marcas (Esc)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+          <span class="herr__txt">Sacar marcas</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Cortar">
+        <p class="herr__titulo">Cortar</p>
+        <button id="btn-dividir" class="herr" type="button" title="Cortar en el cursor (S)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/></svg>
+          <span class="herr__txt">Dividir</span></button>
+        <button id="btn-borrar" class="herr" type="button" title="Borrar el clip elegido, o el tramo marcado, y cerrar el hueco (Supr)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14"/><path d="M10 7V4h4v3"/><path d="M7 7l1 13h8l1-13"/></svg>
+          <span class="herr__txt" id="btn-borrar-txt">Borrar</span></button>
+        <button id="btn-recortar" class="herr" type="button" title="Quedarse solo con el tramo marcado">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v14h14"/><path d="M3 7h14v14"/></svg>
+          <span class="herr__txt">Recortar al tramo</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Historial">
+        <p class="herr__titulo">Historial</p>
+        <button id="btn-deshacer" class="herr" type="button" title="Deshacer (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+          <span class="herr__txt">Deshacer</span></button>
+        <button id="btn-rehacer" class="herr" type="button" title="Rehacer (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
+          <span class="herr__txt">Rehacer</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Limpiar">
+        <p class="herr__titulo">Limpiar</p>
+        <button id="btn-silencios" class="herr" type="button" title="Buscar los silencios del audio y cortarlos de una vez">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h2"/><path d="M7 8v8"/><path d="M11 5v14"/><path d="M15 9v6"/><path d="M19 12h2"/></svg>
+          <span class="herr__txt">Cortar silencios…</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Subtítulos y escenas">
+        <p class="herr__titulo">Texto y escenas</p>
+        <button id="btn-subtitulos" class="herr" type="button" title="Transcribir lo que se dice y editar los subtítulos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4"/><path d="M13 13h4"/><path d="M7 16h2"/><path d="M11 16h6"/></svg>
+          <span class="herr__txt">Subtítulos…</span></button>
+        <button id="btn-texto" class="herr" type="button" title="Editar el video como si fuera un texto: borrar palabras, muletillas y pausas">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 10h10"/><path d="M4 14h16"/><path d="M4 18h7"/><path d="M15 17l5-5"/><path d="M15 17v3h3"/></svg>
+          <span class="herr__txt">Editar por texto…</span></button>
+        <button id="btn-escenas" class="herr" type="button" title="Buscar cambios de escena, tramos negros y tramos congelados">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="7" height="12" rx="1"/><rect x="14" y="6" width="7" height="12" rx="1"/><path d="M12 4v16"/></svg>
+          <span class="herr__txt">Escenas…</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Exportar rápido">
+        <p class="herr__titulo">Rápido</p>
+        <button id="btn-presets" class="herr" type="button" title="Reel en un clic: cortar silencios, subtitular, nivelar el volumen y exportar, todo junto">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>
+          <span class="herr__txt">Con un preset…</span></button>
+      </div>
+      <div class="herr__grupo" role="group" aria-label="Audio">
+        <p class="herr__titulo">Audio</p>
+        <button id="btn-agregar-audio" class="herr" type="button" title="Poner un audio (música, locución) en el cursor">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
+          <span class="herr__txt">Agregar audio…</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- centro: visor y transporte -->
+  <div id="centro">
+    <main id="escena">
+
+      <section id="bienvenida">
+        <div class="perf" aria-hidden="true"></div>
+        <div class="bienvenida__cuerpo">
+          <img class="bienvenida__logo" src="logo.png" alt="Moviola" width="96" height="96">
+          <p class="rotulo">Editor de video y audio</p>
+          <h2 class="titular">Tu mesa de montaje.</h2>
+          <p class="bajada">Armá proyectos con varios videos, cortalos como si fueran un texto, subtitulá y exportá en el formato que necesites.
+            Todo corre en tu computadora: no sube nada.</p>
+          <div class="bienvenida__botones">
+            <div class="bienvenida__columna" role="group" aria-label="Proyectos">
+              <p class="bienvenida__rotulo">Proyectos</p>
+              <button id="btn-crear-proyecto" class="boton boton--grande" type="button" title="Elegir varios videos y armar un proyecto con todos, uno detrás de otro">Crear un proyecto</button>
+              <button id="btn-abrir-proyecto" class="boton boton--grande" type="button">Abrir un proyecto</button>
+            </div>
+            <div class="bienvenida__columna" role="group" aria-label="Editar">
+              <p class="bienvenida__rotulo">Editar</p>
+              <button id="btn-abrir" class="boton boton--primario boton--grande" type="button">Editar un video</button>
+              <button id="btn-lote" class="boton boton--grande" type="button" title="Aplicar un preset (cortar silencios, subtitular, nivelar, exportar) a varios videos de una vez">Procesar varios</button>
+            </div>
+            <div class="bienvenida__columna" role="group" aria-label="YouTube">
+              <p class="bienvenida__rotulo">YouTube</p>
+              <button id="btn-youtube" class="boton boton--grande" type="button" title="Bajar un video de YouTube para editarlo (libre difusión o tuyo)">Bajar de YouTube</button>
+            </div>
+          </div>
+          <p class="pista">O arrastrá el archivo acá, a la ventana.</p>
+          <p class="pista"><button id="btn-acerca-inicio" class="enlace" type="button">Acerca de Moviola</button></p>
+          <p id="recuperar" class="recuperar" hidden role="status">
+            <span id="recuperar-texto"></span>
+            <button id="btn-recuperar" class="boton boton--chico" type="button">Recuperarlo</button>
+            <button id="btn-descartar-recup" class="boton boton--chico boton--fantasma" type="button">Descartar</button>
+          </p>
+          <div id="recientes" hidden>
+            <p class="rotulo">Abiertos hace poco</p>
+            <ul id="recientes-lista"></ul>
+          </div>
+        </div>
+        <div class="perf" aria-hidden="true"></div>
+      </section>
+
+      <div id="visor" hidden>
+        <img id="capa-cuadro" class="medio" alt="Cuadro actual del video">
+        <video id="capa-video" class="medio" hidden playsinline preload="auto"></video>
+        <div id="fundido-visor" aria-hidden="true"></div>
+        <p id="subtitulo-visor" aria-hidden="true" hidden></p>
+        <div id="preparando" role="status" hidden>
+          <span id="preparando-texto">Preparando la reproducción…</span>
+          <span class="preparando__riel" aria-hidden="true"><span id="preparando-barra"></span></span>
+        </div>
+        <div id="panel-audio" hidden>
+          <p class="rotulo">Solo audio</p>
+          <p id="panel-audio-datos" class="panel-audio__tiempo"></p>
+        </div>
+      </div>
+
+      <div id="cargando" hidden>
+        <p id="cargando-texto">Leyendo el video…</p>
+        <div class="cargando__riel" aria-hidden="true"><span></span></div>
+      </div>
+
+    </main>
+
+    <!-- transporte y posición -->
+    <section id="transporte" hidden>
+
+      <div class="contador">
+        <div class="contador__campo" title="Cuadro actual y último cuadro. Se numeran desde 0.">
+          <span class="contador__rotulo">Cuadro</span>
+          <span class="contador__cifra"><b id="cuadro-actual">0</b><i>/</i><span id="cuadro-total">0</span></span>
+        </div>
+        <div class="contador__campo" title="Tiempo actual y duración total">
+          <span class="contador__rotulo">Tiempo</span>
+          <span class="contador__cifra"><b id="tiempo-actual">00:00,000</b><i>/</i><span id="tiempo-total">00:00,000</span></span>
+        </div>
+      </div>
+
+      <div class="mandos">
+        <button id="btn-inicio" class="mando" type="button" title="Primer cuadro (Inicio)" aria-label="Primer cuadro">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.4v14H6z"/><path d="M20 5.2 9.6 12 20 18.8z"/></svg>
+        </button>
+        <button id="btn-seg-atras" class="mando mando--texto" type="button" title="Un segundo atrás (Shift + ←)" aria-label="Un segundo atrás">−1 s</button>
+        <button id="btn-cuadro-atras" class="mando mando--texto" type="button" title="Un cuadro atrás (←)" aria-label="Un cuadro atrás">−1</button>
+        <button id="btn-play" class="mando mando--play" type="button" title="Reproducir (Espacio)" aria-label="Reproducir">
+          <span id="icono-reproducir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5 19.5 12 7 19.5z"/></svg></span>
+          <span id="icono-pausar" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg></span>
+        </button>
+        <button id="btn-cuadro-adelante" class="mando mando--texto" type="button" title="Un cuadro adelante (→)" aria-label="Un cuadro adelante">+1</button>
+        <button id="btn-seg-adelante" class="mando mando--texto" type="button" title="Un segundo adelante (Shift + →)" aria-label="Un segundo adelante">+1 s</button>
+        <button id="btn-fin" class="mando" type="button" title="Último cuadro (Fin)" aria-label="Último cuadro">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 5H18v14h-2.4z"/><path d="M4 5.2 14.4 12 4 18.8z"/></svg>
+        </button>
+      </div>
+
+      <p class="atajos">
+        <span><kbd>←</kbd><kbd>→</kbd> cuadro</span>
+        <span><kbd>Shift</kbd><kbd>←</kbd><kbd>→</kbd> segundo</span>
+        <span><kbd>Espacio</kbd> play o pausa</span>
+        <span><kbd>Inicio</kbd><kbd>Fin</kbd> extremos</span>
+        <span><kbd>J</kbd> atrás <kbd>K</kbd> pausa <kbd>L</kbd> play</span>
+      </p>
+
+    </section>
+  </div>
+
+  <!-- propiedades del clip elegido (panel derecho): las secciones crecen con las funciones nuevas -->
+  <aside id="props" aria-label="Propiedades" hidden>
+    <details class="sec sec--medios" id="sec-medios" open>
+      <summary>Medios <span id="medios-cuenta"></span></summary>
+      <div class="sec__cuerpo">
+        <div id="medios-lista" role="list"></div>
+        <p id="medios-vacio" class="fx__nota" hidden>Todavía no hay archivos en el proyecto.</p>
+        <button id="btn-agregar-videos" class="herr herr--ancho" type="button" title="Sumar otros videos al proyecto (también podés soltarlos acá)">Agregar videos…</button>
+        <button id="btn-youtube-medios" class="herr herr--ancho" type="button" title="Bajar un video de YouTube (libre difusión o tuyo) y sumarlo al proyecto" hidden>Bajar de YouTube…</button>
+        <p id="medios-aviso" class="fx__nota" hidden></p>
+      </div>
+    </details>
+    <h2 class="props__titulo">Propiedades</h2>
+    <p id="props-vacio" class="props__vacio">Elegí un clip con un clic en la línea de tiempo para ver y cambiar sus propiedades.</p>
+    <div id="inspector" hidden>
+      <p class="inspector__titulo" id="inspector-titulo">Clip</p>
+      <details class="sec" id="sec-fundidos" open>
+        <summary>Fundidos</summary>
+        <div class="sec__cuerpo">
+          <label class="campo">Entrada
+            <input type="range" id="fade-in" min="0" max="5" step="0.1" value="0"><output id="fade-in-valor">0,0 s</output></label>
+          <label class="campo">Salida
+            <input type="range" id="fade-out" min="0" max="5" step="0.1" value="0"><output id="fade-out-valor">0,0 s</output></label>
+          <label class="campo campo--lista">Curva
+            <select id="fade-curva">
+              <option value="tri">Lineal</option><option value="qsin">Suave (seno)</option><option value="hsin">Muy suave</option>
+              <option value="log">Logarítmica</option><option value="exp">Exponencial</option><option value="par">Parabólica</option>
+            </select></label>
+          <label class="campo campo--lista" id="campo-color">Fundido a
+            <select id="fade-color"><option value="negro">Negro</option><option value="blanco">Blanco</option></select></label>
+        </div>
+      </details>
+      <details class="sec" id="sec-audio" open>
+        <summary>Audio</summary>
+        <div class="sec__cuerpo">
+          <label class="campo" id="campo-volumen">Volumen
+            <input type="range" id="volumen" min="0" max="200" step="5" value="100"><output id="volumen-valor">100 %</output></label>
+          <button id="btn-silenciar" class="herr herr--ancho" type="button">Silenciar el audio</button>
+          <button id="btn-medir-volumen" class="herr herr--ancho" type="button" title="Mide el volumen de todo el proyecto, como queda al exportar">Medir el volumen del proyecto</button>
+          <p id="medida-volumen" class="fx__nota" hidden></p>
+        </div>
+      </details>
+      <details class="sec" id="sec-velocidad" open>
+        <summary>Velocidad y tiempo</summary>
+        <div class="sec__cuerpo" id="vel-cuerpo"></div>
+      </details>
+      <details class="sec" id="sec-ducking" open>
+        <summary>Música y voz</summary>
+        <div class="sec__cuerpo" id="duck-cuerpo"></div>
+      </details>
+      <details class="sec" id="sec-transicion" open>
+        <summary>Transición de entrada</summary>
+        <div class="sec__cuerpo" id="trans-cuerpo"></div>
+      </details>
+      <details class="sec" id="sec-fx-video" open>
+        <summary>Efectos de video</summary>
+        <div class="sec__cuerpo" id="fx-video"></div>
+      </details>
+      <details class="sec" id="sec-fx-audio" open>
+        <summary>Efectos de audio</summary>
+        <div class="sec__cuerpo" id="fx-audio"></div>
+      </details>
+      <details class="sec" id="sec-orden" open hidden>
+        <summary>Orden</summary>
+        <div class="sec__cuerpo">
+          <button id="btn-mover-antes" class="herr herr--ancho" type="button" title="Poner este clip antes del anterior (cambia el orden de los videos)">◀ Mover antes</button>
+          <button id="btn-mover-despues" class="herr herr--ancho" type="button" title="Poner este clip después del siguiente (cambia el orden de los videos)">Mover después ▶</button>
+        </div>
+      </details>
+      <details class="sec" id="sec-enlace" open>
+        <summary>Clip</summary>
+        <div class="sec__cuerpo">
+          <button id="btn-separar" class="herr herr--ancho" type="button" title="Separar el audio del video para poder editarlos por separado">Separar audio</button>
+        </div>
+      </details>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ============ línea de tiempo: lienzo con la película, el espectro y los audios extra ============ -->
+<section id="zona-tiempo" hidden>
+  <div id="lt-barra" role="toolbar" aria-label="Zoom e imán de la línea de tiempo">
+    <span class="lt__ayuda">Arrastrá un clip para moverlo · tirá de sus bordes para recortarlo · <kbd>Ctrl</kbd> + rueda para el zoom</span>
+    <button id="lt-iman" class="boton boton--chico lt__iman" type="button" aria-pressed="true" title="Imán: los bordes se pegan al cursor, a las marcas y a los demás clips (con Alt apretado se apaga mientras arrastrás)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0 0 12 0V3"/><path d="M6 7h4"/><path d="M14 7h4"/></svg>Imán</button>
+    <button id="lt-menos" class="boton boton--chico" type="button" title="Alejar (−)" aria-label="Alejar">−</button>
+    <output id="lt-zoom" class="lt__zoom" aria-live="polite">Ajustado</output>
+    <button id="lt-mas" class="boton boton--chico" type="button" title="Acercar (+)" aria-label="Acercar">+</button>
+    <button id="lt-ajustar" class="boton boton--chico" type="button" title="Ver todo el proyecto (0)">Ajustar</button>
+  </div>
+  <div id="lt-desplazador">
+  <div id="carriles">
+    <canvas id="regla" height="18" aria-hidden="true"></canvas>
+    <div class="pelicula">
+      <div class="perf" aria-hidden="true"></div>
+      <div id="tira" data-carril="V1"></div>
+      <div class="perf" aria-hidden="true"></div>
+    </div>
+    <div id="pista-audio" data-carril="A1">
+      <span class="carril__rotulo">A1</span>
+      <canvas id="onda"></canvas>
+      <p id="sin-audio" hidden>Este video no tiene pista de audio</p>
+    </div>
+    <div id="extras"></div>
+    <div id="marcas" aria-hidden="true"></div>
+    <div id="lt-fantasma" aria-hidden="true"></div>
+    <div id="lt-guia" aria-hidden="true" hidden></div>
+    <div id="cursor" aria-hidden="true"><span id="cursor-asa"></span></div>
+  </div>
+  </div>
+</section>
+
+<!-- ============ cortar silencios ============ -->
+<dialog id="dlg-silencios" aria-labelledby="sil-titulo">
+  <form method="dialog" id="sil-form" novalidate>
+    <h2 id="sil-titulo" class="exp__titulo">Cortar silencios</h2>
+    <p class="exp__nota">Busca los tramos sin sonido del audio y los borra cerrando el hueco. El video, el audio y la música quedan sincronizados, y un solo «Deshacer» los devuelve todos.</p>
+    <div id="sil-campos">
+      <label class="campo">Es silencio por debajo de
+        <input type="range" id="sil-umbral" min="-60" max="-15" step="1" value="-35"><output id="sil-umbral-valor">−35 dB</output></label>
+      <label class="campo">Dura al menos
+        <input type="range" id="sil-duracion" min="0.2" max="3" step="0.1" value="0.5"><output id="sil-duracion-valor">0,5 s</output></label>
+      <label class="campo">Dejar de margen
+        <input type="range" id="sil-margen" min="0" max="0.5" step="0.05" value="0.1"><output id="sil-margen-valor">0,10 s</output></label>
+    </div>
+    <p id="sil-analizando" class="exp__estado" role="status" hidden>Analizando el audio… en un archivo largo puede tardar.</p>
+    <div id="sil-resultado" hidden>
+      <p id="sil-resumen" class="exp__estado" role="status"></p>
+      <canvas id="sil-mapa" height="34" aria-label="Dónde están los silencios en la línea de tiempo"></canvas>
+      <ul id="sil-lista"></ul>
+    </div>
+    <p id="sil-error" class="exp__error" role="alert" hidden></p>
+    <div class="exp__pie">
+      <button id="sil-cerrar" class="boton" type="button">Cerrar</button>
+      <button id="sil-analizar" class="boton" type="button">Buscar silencios</button>
+      <button id="sil-cortar" class="boton boton--primario" type="button" hidden>Cortar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ bajar de YouTube ============ -->
+<dialog id="dlg-youtube" aria-labelledby="yt-titulo">
+  <form method="dialog" id="yt-form" novalidate>
+    <h2 id="yt-titulo" class="exp__titulo">Bajar un video de YouTube</h2>
+    <p class="exp__nota">Para videos <b>tuyos</b>, de <b>libre difusión</b> o con una licencia que permita usarlos. Moviola no esquiva ninguna protección: si YouTube no deja bajar un video, te dice por qué y no pasa nada más.</p>
+    <p id="yt-herramienta" class="exp__nota exp__nota--aviso" role="status" hidden></p>
+
+    <div id="yt-formulario">
+      <label class="exp__nombre">Dirección del video
+        <input type="text" id="yt-url" maxlength="300" spellcheck="false" autocomplete="off" placeholder="https://www.youtube.com/watch?v=…"></label>
+      <div id="yt-tipo-campo">
+        <p class="rotulo">Qué querés bajar</p>
+        <div class="exp__opciones exp__opciones--2" role="radiogroup" aria-label="Qué querés bajar">
+          <button type="button" role="radio" class="exp__op exp__op--activo" data-yt-tipo="video" aria-checked="true">Video <small>MP4</small></button>
+          <button type="button" role="radio" class="exp__op" data-yt-tipo="audio" aria-checked="false">Solo el audio <small>MP3</small></button>
+        </div>
+      </div>
+      <label class="campo campo--lista" id="yt-calidad-campo">Calidad del video
+        <select id="yt-calidad"></select></label>
+      <p class="exp__nota">Se guarda en: <span id="yt-carpeta" class="exp__mono"></span></p>
+      <label class="exp__check"><input type="checkbox" id="yt-derecho"><span>Tengo derecho a usar este video <i>(es mío, es de libre difusión o su licencia lo permite)</i></span></label>
+    </div>
+
+    <div id="yt-progreso" hidden>
+      <p id="yt-progreso-texto" class="exp__estado" role="status">Bajando…</p>
+      <div class="exp__riel" aria-hidden="true"><span id="yt-barra"></span></div>
+    </div>
+
+    <div id="yt-resultado" hidden>
+      <p id="yt-resultado-texto" class="exp__estado"></p>
+      <div class="exp__pie exp__pie--suelto">
+        <button id="yt-mostrar" class="boton" type="button">Mostrar en la carpeta</button>
+        <button id="yt-sumar" class="boton" type="button">Agregarlo al proyecto</button>
+        <button id="yt-editar" class="boton boton--primario" type="button">Editarlo</button>
+      </div>
+    </div>
+
+    <p id="yt-error" class="exp__error" role="alert" hidden></p>
+    <div class="exp__pie">
+      <button id="yt-cerrar" class="boton" type="button">Cerrar</button>
+      <button id="yt-cancelar" class="boton" type="button" hidden>Cancelar la descarga</button>
+      <button id="yt-bajar" class="boton boton--primario" type="button" disabled>Bajar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ acerca de ============ -->
+<dialog id="dlg-acerca" aria-labelledby="ac-titulo">
+  <form method="dialog" id="ac-form" novalidate>
+    <div class="ac__cab">
+      <img class="ac__logo" src="logo.png" alt="" width="72" height="72">
+      <div>
+        <h2 id="ac-titulo" class="exp__titulo"><img class="ac__palabra" src="marca.png" alt="Moviola" height="34"></h2>
+        <p id="ac-version" class="ac__version"></p>
+      </div>
+    </div>
+    <p id="ac-descripcion" class="exp__nota"></p>
+    <dl class="ac__datos">
+      <dt>Hecho por</dt><dd id="ac-autores"></dd>
+      <dt>Licencia</dt><dd id="ac-licencia"></dd>
+    </dl>
+    <p id="ac-garantia" class="exp__nota"></p>
+    <div>
+      <p class="rotulo">En esta computadora</p>
+      <ul id="ac-herramientas" class="ac__lista"></ul>
+    </div>
+    <div>
+      <p class="rotulo">Usa estos programas libres</p>
+      <p id="ac-componentes" class="exp__nota"></p>
+    </div>
+    <p id="ac-error" class="exp__error" role="alert" hidden></p>
+    <div class="exp__pie">
+      <button id="ac-licencia-ver" class="boton" type="button">Ver la licencia</button>
+      <button id="ac-cerrar" class="boton boton--primario" type="button">Cerrar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ editar por texto ============ -->
+<aside id="panel-texto" aria-labelledby="tx-titulo" hidden>
+  <header class="tx__cab">
+    <h2 id="tx-titulo" class="exp__titulo tx__titulo">Editar por texto</h2>
+    <button id="tx-cerrar" class="boton boton--chico boton--fantasma" type="button" aria-label="Cerrar el editor de texto">✕</button>
+  </header>
+  <p class="exp__nota">Elegí palabras (un clic, Mayús + clic, o arrastrando) y apretá <kbd>Supr</kbd>: se corta el video, el audio y todo lo demás. <kbd>Ctrl+Z</kbd> lo deshace. Doble clic corrige una palabra. <kbd>Espacio</kbd> escucha.</p>
+
+  <div id="tx-vacio" hidden>
+    <p id="tx-vacio-texto" class="exp__nota exp__nota--aviso" role="status"></p>
+    <div id="tx-vacio-campos" class="tx__fila">
+      <label class="campo campo--lista">Idioma de la voz <select id="tx-idioma"></select></label>
+      <button id="tx-transcribir" class="boton boton--primario" type="button">Transcribir</button>
+    </div>
+    <div id="tx-prog" hidden>
+      <p id="tx-prog-texto" class="exp__estado" role="status">Transcribiendo…</p>
+      <div class="exp__riel" aria-hidden="true"><span id="tx-prog-barra"></span></div>
+      <button id="tx-prog-cancelar" class="boton boton--chico" type="button">Cancelar</button>
+    </div>
+  </div>
+
+  <p id="tx-desact" class="exp__nota exp__nota--aviso" role="status" hidden>
+    <span>El video cambió después de transcribir: las palabras pueden no coincidir. Para editar por texto, volvé a transcribir.</span>
+    <button id="tx-al-dia" class="boton boton--chico" type="button">Están bien así</button>
+  </p>
+
+  <div id="tx-herr">
+    <div class="tx__fila">
+      <button id="tx-escuchar" class="boton boton--chico" type="button" title="Escuchar desde la palabra elegida (Espacio)">▶ Escuchar</button>
+      <button id="tx-borrar" class="boton boton--chico boton--primario" type="button" disabled title="Sacar las palabras elegidas del video (Supr)">Borrar</button>
+      <button id="tx-deshacer" class="boton boton--chico" type="button" title="Deshacer (Ctrl+Z)">↶</button>
+      <button id="tx-rehacer" class="boton boton--chico" type="button" title="Rehacer (Ctrl+Y)">↷</button>
+      <span id="tx-sel" class="exp__nota" role="status"></span>
+    </div>
+    <details id="tx-mule" class="tx__det">
+      <summary>Muletillas</summary>
+      <div class="tx__det-cuerpo">
+        <label class="exp__check"><input type="checkbox" data-mule="ehm" checked><span>eh, em, mm, ah <i>(los sonidos de duda)</i></span></label>
+        <label class="exp__check"><input type="checkbox" data-mule="osea" checked><span>«o sea»</span></label>
+        <label class="exp__check"><input type="checkbox" data-mule="bueno"><span>«bueno»</span></label>
+        <label class="exp__check"><input type="checkbox" data-mule="digamos"><span>«digamos»</span></label>
+        <label class="exp__check"><input type="checkbox" data-mule="tipo"><span>«tipo»</span></label>
+        <div class="tx__fila"><button id="tx-mule-marcar" class="boton boton--chico" type="button">Marcarlas en el texto</button><span id="tx-mule-n" class="exp__nota"></span></div>
+        <p class="exp__nota">Se marcan para que las revises; después apretá Borrar.</p>
+      </div>
+    </details>
+    <details id="tx-pausas" class="tx__det">
+      <summary>Pausas largas</summary>
+      <div class="tx__det-cuerpo">
+        <label class="campo">Pausas de más de <input type="range" id="tx-pausa-min" min="0.4" max="3" step="0.1" value="0.8"><output id="tx-pausa-min-v">0,8 s</output></label>
+        <label class="campo">Dejarlas en <input type="range" id="tx-pausa-dejar" min="0.1" max="1" step="0.05" value="0.3"><output id="tx-pausa-dejar-v">0,3 s</output></label>
+        <div class="tx__fila"><button id="tx-pausa-acortar" class="boton boton--chico" type="button">Acortarlas</button><span id="tx-pausa-n" class="exp__nota"></span></div>
+      </div>
+    </details>
+  </div>
+
+  <div id="tx-texto" tabindex="0" role="textbox" aria-readonly="true" aria-multiline="true" aria-label="El texto de lo que se dice, palabra por palabra"></div>
+  <p id="tx-error" class="exp__error" role="alert" hidden></p>
+</aside>
+
+<!-- ============ presets y lotes ============ -->
+<dialog id="dlg-presets" aria-labelledby="pre-titulo">
+  <form method="dialog" id="pre-form" novalidate>
+    <h2 id="pre-titulo" class="exp__titulo">Reel en un clic</h2>
+    <p class="exp__nota">Elegí una receta y Moviola hace todo sola: corta los silencios, subtitula, nivela el volumen y exporta. Lo que tenés abierto no cambia.</p>
+
+    <div id="pre-armar">
+      <fieldset>
+        <legend class="rotulo">Qué procesar</legend>
+        <div class="exp__opciones exp__opciones--2" role="radiogroup" aria-label="Qué procesar">
+          <button type="button" role="radio" class="exp__op" data-origen="proyecto" aria-checked="false">Este proyecto</button>
+          <button type="button" role="radio" class="exp__op" data-origen="archivos" aria-checked="false">Varios archivos</button>
+        </div>
+        <div id="pre-archivos" hidden>
+          <div class="exp__carpeta">
+            <span id="pre-archivos-n" class="exp__ruta">Ningún archivo elegido</span>
+            <button id="pre-elegir" class="boton boton--chico" type="button">Elegir archivos…</button>
+          </div>
+          <ul id="pre-archivos-lista" class="pre__archivos"></ul>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="rotulo">Receta</legend>
+        <div id="pre-lista" class="pre__lista" role="radiogroup" aria-label="Receta"></div>
+        <p id="pre-pasos" class="exp__nota"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend class="rotulo">Esta vez</legend>
+        <label class="exp__check"><input type="checkbox" id="pre-silencios"><span>Cortar los silencios</span></label>
+        <label class="exp__check"><input type="checkbox" id="pre-subtitulos"><span>Subtitular lo que se dice</span></label>
+        <label class="exp__check" id="pre-karaoke-campo"><input type="checkbox" id="pre-karaoke"><span>Resaltar la palabra que se dice <i>(estilo karaoke)</i></span></label>
+        <label class="exp__check"><input type="checkbox" id="pre-normalizar"><span>Nivelar el volumen <i>(−14 LUFS, el nivel de las redes)</i></span></label>
+        <label class="campo campo--lista" id="pre-idioma-campo">Idioma de la voz
+          <select id="pre-idioma"></select></label>
+        <p id="pre-aviso-whisper" class="exp__nota exp__nota--aviso" role="status" hidden></p>
+      </fieldset>
+
+      <div class="exp__destino">
+        <p class="rotulo">Guardar en</p>
+        <div class="exp__carpeta">
+          <span id="pre-carpeta" class="exp__ruta" title=""></span>
+          <button id="pre-cambiar" class="boton boton--chico" type="button">Cambiar…</button>
+        </div>
+      </div>
+
+      <p id="pre-error" class="exp__error" role="alert" hidden></p>
+      <div class="exp__pie">
+        <button id="pre-cerrar" class="boton" type="button">Cerrar</button>
+        <button id="pre-empezar" class="boton boton--primario" type="button">Empezar</button>
+      </div>
+    </div>
+
+    <div id="pre-progreso" hidden>
+      <p id="pre-progreso-texto" class="exp__estado" role="status">Procesando…</p>
+      <div class="exp__riel" aria-hidden="true"><span id="pre-barra"></span></div>
+      <p id="pre-progreso-paso" class="exp__nota"></p>
+      <div class="exp__pie">
+        <button id="pre-cancelar" class="boton" type="button">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="pre-resultado" hidden>
+      <p id="pre-resultado-titulo" class="exp__estado"></p>
+      <ul id="pre-resultado-lista" class="pre__resultados"></ul>
+      <div class="exp__pie">
+        <button id="pre-mostrar" class="boton" type="button">Mostrar en la carpeta</button>
+        <button id="pre-otra" class="boton" type="button">Otra vez</button>
+        <button id="pre-listo" class="boton boton--primario" type="button">Listo</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ cambios sin guardar ============ -->
+<dialog id="dlg-confirmar" aria-labelledby="conf-titulo">
+  <form method="dialog" id="conf-form" novalidate>
+    <h2 id="conf-titulo" class="exp__titulo">Hay cambios sin guardar</h2>
+    <p id="conf-texto" class="exp__nota">Si seguís, se pierden las ediciones que hiciste en este proyecto.</p>
+    <div class="exp__pie">
+      <button id="conf-cancelar" class="boton" type="button">Volver</button>
+      <button id="conf-descartar" class="boton" type="button">Seguir sin guardar</button>
+      <button id="conf-guardar" class="boton boton--primario" type="button">Guardar y seguir</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ subtitulos ============ -->
+<dialog id="dlg-subtitulos" aria-labelledby="sub-titulo">
+  <form method="dialog" id="sub-form" novalidate>
+    <h2 id="sub-titulo" class="exp__titulo">Subtítulos</h2>
+    <p class="exp__nota">Transcribe lo que se dice en la pista de voz (A1) tal como quedó el montaje, y te deja corregir cada frase. Se ven en el visor y se pueden quemar sobre el video o guardar como .srt / .vtt al exportar.</p>
+
+    <fieldset id="sub-transcribir">
+      <legend class="rotulo">Transcribir</legend>
+      <div id="sub-campos-trans">
+        <label class="campo campo--lista">Idioma
+          <select id="sub-idioma"></select></label>
+        <label class="campo">Letras por frase
+          <input type="range" id="sub-letras" min="10" max="80" step="2" value="32"><output id="sub-letras-valor">32</output></label>
+      </div>
+      <p id="sub-motivo" class="exp__nota" hidden></p>
+      <p id="sub-progreso-texto" class="exp__estado" role="status" hidden></p>
+      <div class="exp__riel" id="sub-riel" aria-hidden="true" hidden><span id="sub-barra"></span></div>
+      <div class="exp__pie exp__pie--suelto">
+        <button id="sub-cancelar-trans" class="boton" type="button" hidden>Cancelar</button>
+        <button id="sub-transcribir-ya" class="boton boton--primario" type="button">Transcribir</button>
+      </div>
+    </fieldset>
+
+    <p id="sub-desactualizado" class="exp__nota exp__nota--aviso" role="status" hidden>
+      El video cambió después de transcribir: las frases pueden estar corridas.
+      <button id="sub-al-dia" class="boton boton--chico" type="button">Están bien así</button></p>
+
+    <fieldset id="sub-frases-campo">
+      <legend class="rotulo">Frases <span id="sub-cuenta"></span></legend>
+      <ul id="sub-lista"></ul>
+      <p id="sub-vacio" class="exp__nota">Todavía no hay frases. Transcribí, o agregá una a mano en el segundo donde está el cursor.</p>
+      <div class="exp__pie exp__pie--suelto">
+        <button id="sub-agregar" class="boton" type="button">Agregar una frase acá</button>
+        <button id="sub-borrar-todas" class="boton" type="button">Borrar todas</button>
+      </div>
+    </fieldset>
+
+    <fieldset id="sub-estilo-campo">
+      <legend class="rotulo">Cómo se ven</legend>
+      <div id="sub-estilo"></div>
+    </fieldset>
+
+    <p id="sub-error" class="exp__error" role="alert" hidden></p>
+    <div class="exp__pie">
+      <button id="sub-cerrar" class="boton boton--primario" type="button">Listo</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ escenas ============ -->
+<dialog id="dlg-escenas" aria-labelledby="esc-titulo">
+  <form method="dialog" id="esc-form" novalidate>
+    <h2 id="esc-titulo" class="exp__titulo">Escenas, negros y congelados</h2>
+    <p class="exp__nota">Busca en el video los cambios de escena, los tramos negros y los tramos donde la imagen no se mueve. Podés cortar en cada cambio o sacar los tramos de una vez; un solo «Deshacer» lo devuelve.</p>
+    <div id="esc-campos">
+      <label class="campo">Sensibilidad al cambio
+        <input type="range" id="esc-umbral" min="3" max="40" step="1" value="10"><output id="esc-umbral-valor">10</output></label>
+      <label class="campo">Negro: dura al menos
+        <input type="range" id="esc-negro" min="0.1" max="5" step="0.1" value="0.3"><output id="esc-negro-valor">0,3 s</output></label>
+      <label class="campo">Congelado: dura al menos
+        <input type="range" id="esc-congelado" min="0.3" max="10" step="0.1" value="1"><output id="esc-congelado-valor">1,0 s</output></label>
+    </div>
+    <p id="esc-analizando" class="exp__estado" role="status" hidden>Analizando el video… en un archivo largo puede tardar.</p>
+    <div id="esc-resultado" hidden>
+      <p id="esc-resumen" class="exp__estado" role="status"></p>
+      <canvas id="esc-mapa" height="34" aria-label="Dónde están en la línea de tiempo"></canvas>
+      <ul id="esc-lista"></ul>
+    </div>
+    <p id="esc-error" class="exp__error" role="alert" hidden></p>
+    <div class="exp__pie">
+      <button id="esc-cerrar" class="boton" type="button">Cerrar</button>
+      <button id="esc-analizar" class="boton" type="button">Buscar</button>
+      <button id="esc-cortar" class="boton" type="button" hidden>Cortar en los cambios</button>
+      <button id="esc-sacar-negros" class="boton" type="button" hidden>Sacar los negros</button>
+      <button id="esc-sacar-congelados" class="boton" type="button" hidden>Sacar los congelados</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ exportar ============ -->
+<dialog id="dlg-exportar" aria-labelledby="exp-titulo">
+  <form method="dialog" id="exp-form" novalidate>
+    <h2 id="exp-titulo" class="exp__titulo">Exportar</h2>
+
+    <!-- 1. armar la exportacion -->
+    <div id="exp-armar">
+      <fieldset id="exp-campo-video">
+        <legend class="rotulo">Video</legend>
+        <div class="exp__opciones exp__opciones--4" role="radiogroup" aria-label="Formato del video">
+          <button type="button" role="radio" class="exp__op" data-formato="original" aria-checked="false">Original</button>
+          <button type="button" role="radio" class="exp__op" data-formato="vertical" aria-checked="false">Vertical <small>9:16</small></button>
+          <button type="button" role="radio" class="exp__op" data-formato="horizontal" aria-checked="false">Horizontal <small>16:9</small></button>
+          <button type="button" role="radio" class="exp__op" data-formato="cuadrado" aria-checked="false">Cuadrado <small>1:1</small></button>
+        </div>
+      </fieldset>
+      <div id="exp-perfil-campo">
+        <label class="campo campo--lista">Tipo de archivo
+          <select id="exp-perfil"></select></label>
+        <p id="exp-perfil-nota" class="exp__nota"></p>
+        <div id="exp-calidad-campo">
+          <p class="rotulo">Calidad</p>
+          <div class="exp__opciones exp__opciones--3" role="radiogroup" aria-label="Calidad del video">
+            <button type="button" role="radio" class="exp__op" data-calidad="alta" aria-checked="true">Alta</button>
+            <button type="button" role="radio" class="exp__op" data-calidad="equilibrada" aria-checked="false">Equilibrada</button>
+            <button type="button" role="radio" class="exp__op" data-calidad="liviana" aria-checked="false">Liviana</button>
+          </div>
+        </div>
+        <div id="exp-gif-campo" hidden>
+          <label class="campo">Ancho
+            <input type="range" id="exp-gif-ancho" min="120" max="960" step="40" value="480"><output id="exp-gif-ancho-valor">480 px</output></label>
+          <label class="campo campo--lista">Cuadros por segundo
+            <select id="exp-gif-fps"><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="25">25</option></select></label>
+        </div>
+      </div>
+      <fieldset>
+        <legend class="rotulo" id="exp-rotulo-audio">Solo el audio</legend>
+        <div class="exp__opciones exp__opciones--3" role="radiogroup" aria-label="Formato del audio">
+          <button type="button" role="radio" class="exp__op" data-formato="wav" aria-checked="false">WAV</button>
+          <button type="button" role="radio" class="exp__op" data-formato="mp3" aria-checked="false">MP3</button>
+          <button type="button" role="radio" class="exp__op" data-formato="flac" aria-checked="false">FLAC</button>
+          <button type="button" role="radio" class="exp__op" data-formato="m4a" aria-checked="false">M4A</button>
+          <button type="button" role="radio" class="exp__op" data-formato="opus" aria-checked="false">Opus</button>
+          <button type="button" role="radio" class="exp__op" data-formato="ogg" aria-checked="false">OGG</button>
+        </div>
+      </fieldset>
+
+      <div id="exp-encuadre" hidden>
+        <p class="rotulo">Si la proporción no coincide</p>
+        <div class="exp__opciones exp__opciones--2" role="radiogroup" aria-label="Qué hacer si la proporción no coincide">
+          <button type="button" role="radio" class="exp__op" data-encuadre="recortar" aria-checked="true">Recortar</button>
+          <button type="button" role="radio" class="exp__op" data-encuadre="barras" aria-checked="false">Dejar barras</button>
+        </div>
+        <div id="exp-foco">
+          <label class="campo">Posición horizontal
+            <input type="range" id="exp-foco-x" min="0" max="100" step="1" value="50"><output id="exp-foco-x-valor">50 %</output></label>
+          <label class="campo">Posición vertical
+            <input type="range" id="exp-foco-y" min="0" max="100" step="1" value="50"><output id="exp-foco-y-valor">50 %</output></label>
+        </div>
+      </div>
+
+      <fieldset id="exp-campo-subs" hidden>
+        <legend class="rotulo">Subtítulos</legend>
+        <label class="exp__check" id="exp-subs-quemar-campo"><input type="checkbox" id="exp-subs-quemar"><span>Quemarlos sobre el video</span></label>
+        <label class="exp__check"><input type="checkbox" id="exp-subs-srt"><span>Guardar también un archivo <i>.srt</i></span></label>
+        <label class="exp__check"><input type="checkbox" id="exp-subs-vtt"><span>Guardar también un archivo <i>.vtt</i></span></label>
+      </fieldset>
+
+      <label class="exp__check" id="exp-campo-norm">
+        <input type="checkbox" id="exp-normalizar">
+        <span>Normalizar el volumen <i>(−14 LUFS, el nivel de las redes)</i></span>
+      </label>
+
+      <div class="exp__destino">
+        <p class="rotulo">Guardar en</p>
+        <div class="exp__carpeta">
+          <span id="exp-carpeta" class="exp__ruta" title=""></span>
+          <button id="exp-cambiar" class="boton boton--chico" type="button">Cambiar…</button>
+        </div>
+        <label class="exp__nombre">Nombre
+          <input type="text" id="exp-nombre" maxlength="120" spellcheck="false" autocomplete="off">
+        </label>
+        <p id="exp-archivo" class="exp__archivo"></p>
+      </div>
+
+      <p id="exp-gpu" class="exp__nota" hidden>Con la aceleración por GPU elegida se intenta usar la placa de video; si no funciona, se exporta con el procesador y te aviso.</p>
+      <p id="exp-error" class="exp__error" role="alert" hidden></p>
+
+      <div class="exp__pie">
+        <button id="exp-cancelar-armar" class="boton" type="button">Cancelar</button>
+        <button id="exp-iniciar" class="boton boton--primario" type="button">Exportar</button>
+      </div>
+    </div>
+
+    <!-- 2. exportando -->
+    <div id="exp-progreso" hidden>
+      <p id="exp-progreso-texto" class="exp__estado" role="status">Exportando…</p>
+      <div class="exp__riel" aria-hidden="true"><span id="exp-barra"></span></div>
+      <p class="exp__nota">Se guarda lo que había al apretar Exportar. Podés cancelar cuando quieras: no queda ningún archivo a medias.</p>
+      <div class="exp__pie">
+        <button id="exp-cancelar-export" class="boton" type="button">Cancelar exportación</button>
+      </div>
+    </div>
+
+    <!-- 3. resultado -->
+    <div id="exp-resultado" hidden>
+      <p id="exp-resultado-titulo" class="exp__estado"></p>
+      <ul id="exp-resultado-lineas"></ul>
+      <p id="exp-resultado-aviso" class="exp__nota" hidden></p>
+      <div class="exp__pie">
+        <button id="exp-mostrar" class="boton" type="button">Mostrar en la carpeta</button>
+        <button id="exp-otra" class="boton" type="button">Exportar otra</button>
+        <button id="exp-cerrar" class="boton boton--primario" type="button">Listo</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ capa de arrastre ============ -->
+<div id="zona-suelta" hidden><p>Soltá el video acá</p></div>
+
+<script src="app.js"></script>
+<script src="edicion.js"></script>
+<script src="efectos.js"></script>
+<script src="silencios.js"></script>
+<script src="subtitulos.js"></script>
+<script src="acerca.js"></script>
+<script src="texto.js"></script>
+<script src="linea-tiempo.js"></script>
+<script src="proyectos.js"></script>
+<script src="medios.js"></script>
+<script src="youtube.js"></script>
+<script src="presets.js"></script>
+<script src="escenas.js"></script>
+<script src="exportar.js"></script>
+</body>
+</html>

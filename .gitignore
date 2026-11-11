@@ -1,0 +1,32 @@
+# Generado al correr o al armar el paquete: nunca va al repositorio
+dist/
+cache/
+__pycache__/
+*.pyc
+*.log
+ajustes.json
+.latido
+.escritura-*
+
+# Copias de trabajo y temporales
+*.parcial.*
+*.tmp
+grafo-*.txt
+
+# Del editor / del sistema
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+recuperacion.moviola
+
+# Documentos de trabajo del autor (rutas y datos de su PC): no van al repositorio
+ESTADO.md
+PENDIENTE.md
+IDEAS.md
+GITHUB.md
+
+# Programas de terceros y marcas locales
+bin/
+.moviola-instalado
+ultimo-error.log

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="t">
+  <title id="t">Moviola</title>
+  <defs>
+    <linearGradient id="cuerpo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B7ABFF"/>
+      <stop offset="1" stop-color="#6F5FE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#12101C"/>
+  <!-- patas -->
+  <path d="M90 212 L78 234 M166 212 L178 234" stroke="#6F5FE0" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- cuerpo de la moviola -->
+  <rect x="62" y="108" width="132" height="108" rx="20" fill="url(#cuerpo)"/>
+  <!-- cinta de pelicula: sale de cada carrete y pasa por la pantalla -->
+  <path d="M92 104 C92 128 108 124 112 136" fill="none" stroke="#FF6D5A" stroke-width="8" stroke-linecap="round"/>
+  <path d="M164 104 C164 128 148 124 144 136" fill="none" stroke="#FF6D5A" stroke-width="8" stroke-linecap="round"/>
+  <path d="M92 104 C92 128 108 124 112 136" fill="none" stroke="#12101C" stroke-width="2.4" stroke-dasharray="2 6"/>
+  <path d="M164 104 C164 128 148 124 144 136" fill="none" stroke="#12101C" stroke-width="2.4" stroke-dasharray="2 6"/>
+  <!-- carretes -->
+  <g>
+    <circle cx="92" cy="72" r="38" fill="#1B1829" stroke="url(#cuerpo)" stroke-width="9"/>
+    <circle cx="92" cy="72" r="9" fill="#FF6D5A"/>
+    <circle cx="92" cy="49" r="7.5" fill="#12101C"/>
+    <circle cx="72" cy="83.5" r="7.5" fill="#12101C"/>
+    <circle cx="112" cy="83.5" r="7.5" fill="#12101C"/>
+  </g>
+  <g>
+    <circle cx="164" cy="72" r="38" fill="#1B1829" stroke="url(#cuerpo)" stroke-width="9"/>
+    <circle cx="164" cy="72" r="9" fill="#FF6D5A"/>
+    <circle cx="164" cy="49" r="7.5" fill="#12101C"/>
+    <circle cx="144" cy="83.5" r="7.5" fill="#12101C"/>
+    <circle cx="184" cy="83.5" r="7.5" fill="#12101C"/>
+  </g>
+  <!-- pantalla -->
+  <rect x="94" y="136" width="68" height="56" rx="11" fill="#1B1829"/>
+  <rect x="102" y="144" width="52" height="40" rx="7" fill="#FF6D5A"/>
+  <!-- espectro de audio: barras del mismo ritmo que la onda de la linea de tiempo -->
+  <g fill="#EFECFA">
+    <rect x="109" y="160" width="5" height="8" rx="2.5"/>
+    <rect x="118" y="153" width="5" height="22" rx="2.5"/>
+    <rect x="127" y="157" width="5" height="14" rx="2.5"/>
+    <rect x="136" y="150" width="5" height="28" rx="2.5"/>
+    <rect x="145" y="158" width="5" height="12" rx="2.5"/>
+  </g>
+  <!-- perillas -->
+  <circle cx="86" cy="204" r="5.5" fill="#1B1829"/>
+  <circle cx="170" cy="204" r="5.5" fill="#1B1829"/>
+</svg>

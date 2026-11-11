@@ -1,0 +1,10 @@
+Moviola — editor de video y audio local
+
+Autores
+  Diego Bertelli                              autor humano del proyecto: concepto, decisiones, dirección
+  Claude (Anthropic), Claude Sonnet 5.5       código, pruebas y documentación, bajo la dirección de Diego
+                                              (claude-sonnet-5-5; otras versiones de Claude participaron en
+                                              etapas anteriores)
+
+Copyright (C) 2026 Diego Bertelli y Claude (Anthropic, Claude Sonnet 5.5)
+Licencia: GNU General Public License v3 o posterior (GPL-3.0-or-later). Ver LICENSE y LICENCIA.md.

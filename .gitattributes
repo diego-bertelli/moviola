@@ -1,0 +1,13 @@
+# Texto con finales de línea LF en el repositorio; los .bat necesitan CRLF en Windows.
+* text=auto eol=lf
+*.bat text eol=crlf
+
+# Binarios
+*.png binary
+*.ico binary
+*.jpg binary
+*.mp4 binary
+*.mp3 binary
+*.wav binary
+*.ps1 text eol=crlf
+*.zip binary
