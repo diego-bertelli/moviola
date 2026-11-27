@@ -262,7 +262,7 @@ def _dialogo_tkinter():
         filetypes=[('Video y audio', ' '.join('*.' + e for e in _TODAS)), ('Todos los archivos', '*.*')]))
 
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 _FFMPEG_VERSION = []
 
 

@@ -106,7 +106,7 @@ function pintarMedios() {
   fuentes.forEach((f) => {
     const m = S.medios[f.id] || null;
     const item = document.createElement('div');
-    item.className = 'medio';
+    item.className = 'medio-item';   // no «medio»: esa clase es la de la imagen del visor (grid-area, filtros de la vista previa)
     item.dataset.fid = f.id;
     item.setAttribute('role', 'listitem');
     const mini = document.createElement('div');

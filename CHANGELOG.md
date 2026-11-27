@@ -4,6 +4,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Sin publicar]
 
+## [1.2.1] - 2026-11-27
+
+### Agregado
+- **Manual de usuario** en `docs/MANUAL.md`, con capturas: de instalar a exportar, explicado para quien nunca editó un video.
+
+### Corregido
+- Con dos archivos o más en el proyecto, las tarjetas del panel **Medios** quedaban apiladas una encima de otra: compartían la clase
+  `medio` con la imagen del visor y heredaban su lugar en la grilla (y los filtros de la vista previa).
+
 ## [1.2.0] - 2026-11-26
 
 ### Agregado

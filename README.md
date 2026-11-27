@@ -7,6 +7,9 @@ Licensed under GPL-3.0-or-later. Documentation is in Spanish.
 
 ![Moviola: visor con subtítulos karaoke, panel «Editar por texto» y línea de tiempo con video, voz y música](docs/captura.png)
 
+**¿Primera vez?** Leé el [manual de usuario](docs/MANUAL.md): instalar, editar, subtitular y exportar, paso a paso y sin palabras raras.
+User manual (Spanish): [docs/MANUAL.md](docs/MANUAL.md).
+
 **Descargar:** el instalador para Windows 10/11 está en [Releases](../../releases/latest).
 
 ---

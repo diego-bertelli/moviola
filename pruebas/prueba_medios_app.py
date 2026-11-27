@@ -104,7 +104,7 @@ def _correr(w):
 
     print("=== 1. el panel ===")
     ok(abrir(w, a), "abre el video A")
-    e = js(w, """({visible: !document.getElementById('sec-medios').hidden, items: document.querySelectorAll('#medios-lista .medio').length,
+    e = js(w, """({visible: !document.getElementById('sec-medios').hidden, items: document.querySelectorAll('#medios-lista .medio-item').length,
                    nombre: (document.querySelector('#medios-lista .medio__nombre') || {}).textContent, marca: (document.querySelector('#medios-lista .medio__marca') || {}).textContent,
                    meta: (document.querySelector('#medios-lista .medio__meta') || {}).textContent, agregar: document.getElementById('btn-agregar-videos').disabled})""")
     ok(e["visible"] and e["items"] == 1 and e["nombre"] == "A.mp4" and e["marca"] == "Principal" and "640×360" in e["meta"] and "30 fps" in e["meta"] and not e["agregar"],
@@ -113,26 +113,29 @@ def _correr(w):
 
     print("=== 2. sumar videos ===")
     w.evaluate_js("sumarRutas(%s)" % json.dumps([b, c]))
-    ok(esperar(w, "document.querySelectorAll('#medios-lista .medio').length === 3", 20), "sumar dos videos: aparecen en la lista")
+    ok(esperar(w, "document.querySelectorAll('#medios-lista .medio-item').length === 3", 20), "sumar dos videos: aparecen en la lista")
+    # hasta la 1.2.0 las tarjetas compartian la clase «medio» con la imagen del visor y quedaban apiladas una encima de otra
+    filas = js(w, "[...document.querySelectorAll('#medios-lista .medio-item')].map(x => { const r = x.getBoundingClientRect(); return [r.top, r.bottom]; })")
+    ok(all(filas[i + 1][0] >= filas[i][1] - 0.5 for i in range(len(filas) - 1)), "las tarjetas van una debajo de la otra, sin pisarse", str(filas))
     ok(esperar(w, "S.medios.s2 && S.medios.s3 && !S.medios.s2.error", 30), "el motor manda los datos de cada uno (cuadros por segundo, miniaturas...)")
     time.sleep(0.8)
-    e = js(w, """({items: [...document.querySelectorAll('#medios-lista .medio')].map(x => ({n: x.querySelector('.medio__nombre').textContent, meta: x.querySelector('.medio__meta').textContent,
+    e = js(w, """({items: [...document.querySelectorAll('#medios-lista .medio-item')].map(x => ({n: x.querySelector('.medio__nombre').textContent, meta: x.querySelector('.medio__meta').textContent,
                     mini: x.querySelector('.medio__mini').style.backgroundImage.length > 20, btns: [...x.querySelectorAll('.medio__btn')].map(b => b.dataset.accion + (b.disabled ? '!' : ''))}))})""")
     ok([x["n"] for x in e["items"]] == ["A.mp4", "B.mp4", "C.mp4"] and "320×180" in e["items"][1]["meta"] and "25 fps" in e["items"][1]["meta"] and "24 fps" in e["items"][2]["meta"], "con sus datos propios", str(e["items"]))
     ok(e["items"][1]["mini"] and e["items"][2]["mini"] and e["items"][1]["btns"] == ["final", "cursor", "quitar"], "con miniatura y los botones para ponerlos en la linea de tiempo", str(e["items"][1]))
     ok(js(w, "S.proy.pistas[0].clips.length") == 1 and js(w, "S.proy.sin_guardar") is True, "todavia no estan en la linea de tiempo")
     w.evaluate_js("sumarRutas(%s)" % json.dumps([b]))
-    ok(esperar(w, "document.querySelectorAll('#avisos .aviso').length >= 1", 5) and js(w, "document.querySelectorAll('#medios-lista .medio').length") == 3, "sumar uno repetido: avisa y no lo duplica")
+    ok(esperar(w, "document.querySelectorAll('#avisos .aviso').length >= 1", 5) and js(w, "document.querySelectorAll('#medios-lista .medio-item').length") == 3, "sumar uno repetido: avisa y no lo duplica")
 
     print("=== 3. ponerlos en la linea de tiempo ===")
-    w.evaluate_js("document.querySelector('#medios-lista .medio[data-fid=\"s2\"] .medio__btn[data-accion=final]').click()")
+    w.evaluate_js("document.querySelector('#medios-lista .medio-item[data-fid=\"s2\"] .medio__btn[data-accion=final]').click()")
     ok(esperar(w, "S.proy.pistas[0].clips.length === 2", 10), "«Al final» pone B despues de A")
     time.sleep(1.0)
-    e = js(w, "({dur: S.proy.duracion, total: S.totalCuadros, fids: L.fids, uso: document.querySelector('#medios-lista .medio[data-fid=\"s2\"] .medio__meta').textContent})")
+    e = js(w, "({dur: S.proy.duracion, total: S.totalCuadros, fids: L.fids, uso: document.querySelector('#medios-lista .medio-item[data-fid=\"s2\"] .medio__meta').textContent})")
     ok(abs(e["dur"] - 10.0) < 1e-6 and e["fids"] == ["s1", "s2"] and "en uso" in e["uso"], "la linea de tiempo dura 10 s, sabe de que archivo es cada tramo y el panel marca «en uso»", str(e))
     ok(js(w, "S.totalCuadros") == 180 + 100, "y tiene los cuadros de cada archivo: 180 de A (30/s) y 100 de B (25/s)", str(js(w, "S.totalCuadros")))
     ok(js(w, "fidDe(0)") is None and js(w, "fidDe(S.totalCuadros - 1)") == "s2" and js(w, "fuenteDe(S.totalCuadros - 1)") == 99, "el ultimo cuadro es el 99 de B, y el primero es de A (el principal)")
-    ok(js(w, "document.querySelector('#medios-lista .medio[data-fid=\"s2\"] .medio__btn[data-accion=quitar]').disabled"), "un video que se usa no se puede sacar del panel")
+    ok(js(w, "document.querySelector('#medios-lista .medio-item[data-fid=\"s2\"] .medio__btn[data-accion=quitar]').disabled"), "un video que se usa no se puede sacar del panel")
 
     print("=== 4. el visor muestra el cuadro de cada archivo ===")
     ir_a_tiempo(w, 2.0)
@@ -171,7 +174,7 @@ def _correr(w):
 
     print("=== 7. insertar en el cursor y reordenar ===")
     ir_a_tiempo(w, 4.5)
-    w.evaluate_js("document.querySelector('#medios-lista .medio[data-fid=\"s3\"] .medio__btn[data-accion=cursor]').click()")
+    w.evaluate_js("document.querySelector('#medios-lista .medio-item[data-fid=\"s3\"] .medio__btn[data-accion=cursor]').click()")
     ok(esperar(w, "S.proy.pistas[0].clips.length === 3", 10), "«En el cursor» pone C en el borde de clip mas cercano")
     time.sleep(0.8)
     ok(js(w, "S.proy.pistas[0].clips.map(c => c.fuente)") == ["s1", "s3", "s2"] and abs(js(w, "S.proy.duracion") - 13.0) < 1e-6, "queda A | C | B, de 13 s", str(js(w, "S.proy.pistas[0].clips.map(c => c.fuente)")))
@@ -192,9 +195,9 @@ def _correr(w):
     w.evaluate_js("operar('deshacer', []); operar('deshacer', []); operar('deshacer', [])")
     time.sleep(2.0)
     ok(js(w, "S.proy.pistas[0].clips.map(c => c.fuente).join()") == "s1,s2", "Deshacer devuelve todo, paso por paso (queda A | B)")
-    ok(js(w, "document.querySelector('#medios-lista .medio[data-fid=\"s3\"] .medio__btn[data-accion=quitar]').disabled") is False, "con C sin usar, ya se puede sacar del panel")
-    w.evaluate_js("document.querySelector('#medios-lista .medio[data-fid=\"s3\"] .medio__btn[data-accion=quitar]').click()")
-    ok(esperar(w, "document.querySelectorAll('#medios-lista .medio').length === 2", 10) and js(w, "!S.medios.s3"), "la ✕ saca C del panel")
+    ok(js(w, "document.querySelector('#medios-lista .medio-item[data-fid=\"s3\"] .medio__btn[data-accion=quitar]').disabled") is False, "con C sin usar, ya se puede sacar del panel")
+    w.evaluate_js("document.querySelector('#medios-lista .medio-item[data-fid=\"s3\"] .medio__btn[data-accion=quitar]').click()")
+    ok(esperar(w, "document.querySelectorAll('#medios-lista .medio-item').length === 2", 10) and js(w, "!S.medios.s3"), "la ✕ saca C del panel")
 
     print("=== 8. guardar y abrir un proyecto con varios videos ===")
     api._guardar_en(os.path.join(ex.TMP, "varios_ui.moviola"))
@@ -205,7 +208,7 @@ def _correr(w):
     time.sleep(0.8)
     ir_a_tiempo(w, 8.0)
     ok(codigo_en_pantalla(w, 320, 180) == 50, "y el visor muestra el cuadro 50 de B a los 8 s")
-    ok(js(w, "document.querySelectorAll('#medios-lista .medio').length") == 2 and js(w, "S.proy.archivo_proyecto") == "varios_ui.moviola", "el panel lista los dos y el proyecto tiene su nombre")
+    ok(js(w, "document.querySelectorAll('#medios-lista .medio-item').length") == 2 and js(w, "S.proy.archivo_proyecto") == "varios_ui.moviola", "el panel lista los dos y el proyecto tiene su nombre")
 
     print("=== 9. errores ===")
     ok(not os.path.exists(os.path.join(RAIZ, "ultimo-error.log")), "no se escribio ultimo-error.log")
