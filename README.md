@@ -206,7 +206,7 @@ Para aislarse usan dos variables de entorno: `EDITOR_AJUSTES` (otro archivo de a
 | `prueba_subtitulos.py` | frases y estilo (modelo, 120 secuencias al azar), .srt/.vtt/.ass, el **texto quemado medido en la imagen exportada**, y la transcripcion real con whisper sobre una voz de Windows |
 | `prueba_escenas.py` | cambios de escena, negros y congelados sobre un video de tramos conocidos, y en una linea de tiempo editada (cortes, velocidad, reversa) |
 | `prueba_subtitulos_app.py` | subtitulos y escenas en la **ventana real** (transcribir, corregir, estilo, vista sobre el visor, exportar con subtitulos, cortar escenas) |
-| `prueba_composicion.py` | logo, quitar fondo, texto y zoom lento: el **archivo exportado medido** (donde cae el logo en las 9 posiciones, color del fondo reemplazado, region y momento del texto, hacia donde se acerca el zoom) |
+| `prueba_composicion.py` | logo, quitar fondo, texto y zoom lento: el **archivo exportado medido** (donde cae el logo en las 9 posiciones y en el lugar libre, en qué tramo aparece, color del fondo reemplazado, region y momento del texto, hacia donde se acerca el zoom) |
 | `prueba_composicion_app.py` | los efectos de composicion en la **ventana real** (cuadro de texto, selector de imagenes) y exportados |
 | `prueba_tiempo.py` | velocidad, cámara lenta, reversa, repetir y ducking: el modelo, 250 secuencias al azar y el **archivo exportado medido** (cuadros con código de barras, gris y tono de cada segundo, dB del ducking) |
 | `prueba_tiempo_app.py` | velocidad, al revés, repetir y ducking en la **ventana real** |

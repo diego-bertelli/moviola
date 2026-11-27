@@ -4,6 +4,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Sin publicar]
 
+## [1.2.0] - 2026-11-26
+
+### Agregado
+- **Logo o imagen encima**: ahora se ve en el visor mientras se edita y se puede **arrastrar con el mouse** adonde se quiera
+  (la posición pasa a «Donde la deje con el mouse», con dos controles para afinarla con números). Lo exportado usa la misma cuenta.
+- **Logo o imagen encima**: «Aparece a los» y «Desaparece a los», como el texto, para mostrarlo solo en un tramo del clip sin cortarlo.
+- Los tiempos de «Aparece a los» / «Desaparece a los» (logo y texto) se pueden tomar de donde está parada la línea roja, con un botón.
+
+### Cambiado
+- Los proyectos hechos con la 1.1 se abren igual: un logo sin tramo ni lugar libre se exporta como antes (todo el clip, en su posición).
+
 ## [1.1.0] - 2026-11-09
 
 ### Seguridad

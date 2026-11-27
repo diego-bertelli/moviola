@@ -336,3 +336,13 @@ de cada decisión para que Diego pueda revisarla y revertirla.
   programa lo indica); la portátil sigue escribiendo al lado. (9) **`-protocol_whitelist file`** en cada entrada de FFmpeg/ffprobe y en PyAV. (10) Queda
   sabido y sin resolver: la suma de yt-dlp viene del mismo sitio que el programa (detecta una descarga rota, no una versión comprometida) y dos ventanas de
   Moviola comparten la copia de recuperación. Pruebas: `pruebas/prueba_revision.py`.
+- 2026-11-26 · **Logo: tramo y lugar con el mouse (1.2.0)** (pedido de Diego: «agregale el desde-hasta y ubicarla con el mouse»). (1) El lugar libre se guarda
+  como **% de lo que sobra** (`x`, `y` de 0 a 100: 0 = contra el borde izquierdo o de arriba, 100 = contra el otro), no como píxeles ni como centro: así
+  la imagen nunca se sale del cuadro, vale igual con cualquier tamaño de salida y no depende del tamaño del visor. En ese modo el margen no cuenta.
+  (2) La posición «libre» es una opción más de la lista; arrastrar la elige sola, y los dos controles de `x`/`y` solo se muestran con ella
+  (`solo_si` en el catálogo: la interfaz sigue sin saber de ningún efecto en particular). (3) El tramo usa la misma cuenta que el texto
+  (`_tramo` en `motor/efectos.py`, `enable` de ffmpeg sobre el `overlay`). (4) La vista previa dibuja la imagen con un `<img>` sobre el visor;
+  el motor la sirve por `/imagen/<token>/` solo si es la imagen elegida en un efecto de logo del proyecto abierto (`API.imagen_efecto`), aparte de los
+  audios para no desplazarlos. Es aproximada como el resto: el visor muestra la fuente, no el encuadre de salida. (5) Los proyectos viejos no tienen
+  `x`, `y`, `desde` ni `hasta` en el logo: el exportador y la interfaz usan los valores por defecto (todo el clip). Pruebas: `prueba_composicion.py`
+  (exportado medido) y `prueba_composicion_app.py` (arrastre y botón de la línea roja en la ventana real).

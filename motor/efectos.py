@@ -37,6 +37,8 @@ POSICIONES = [{"valor": v, "nombre": n} for v, n in (
     ("arriba_izquierda", "Arriba a la izquierda"), ("arriba_centro", "Arriba al centro"), ("arriba_derecha", "Arriba a la derecha"),
     ("centro_izquierda", "Al centro a la izquierda"), ("centro", "En el centro"), ("centro_derecha", "Al centro a la derecha"),
     ("abajo_izquierda", "Abajo a la izquierda"), ("abajo_centro", "Abajo al centro"), ("abajo_derecha", "Abajo a la derecha"))]
+# El logo, ademas, se puede dejar donde se lo suelte con el mouse en el visor (x, y: 0 = contra el borde izquierdo/de arriba, 100 = contra el otro).
+POSICIONES_LOGO = POSICIONES + [{"valor": "libre", "nombre": "Donde la deje con el mouse"}]
 FUENTES = {"segoeui": ("Segoe UI", "segoeui.ttf"), "segoeuib": ("Segoe UI negrita", "segoeuib.ttf"), "arial": ("Arial", "arial.ttf"),
            "arialbd": ("Arial negrita", "arialbd.ttf"), "georgia": ("Georgia", "georgia.ttf"), "impact": ("Impact", "impact.ttf"),
            "times": ("Times New Roman", "times.ttf"), "verdana": ("Verdana", "verdana.ttf")}
@@ -172,14 +174,22 @@ EFECTOS = {
     "superponer": {
         "nombre": "Logo o imagen encima",
         "categoria": "video",
-        "descripcion": "Pone una imagen (un logo, una marca de agua) encima del video, en la posición, el tamaño y la transparencia que elijas. Sirve .png con fondo transparente.",
+        "descripcion": "Pone una imagen (un logo, una marca de agua) encima del video, en la posición, el tamaño y la transparencia que elijas. "
+                       "Se puede arrastrar con el mouse en el visor y hacer aparecer solo en un tramo del clip. Sirve .png con fondo transparente.",
+        "vista_previa": True,
         "neutro": {"archivo": ""},
         "params": [
             {"id": "archivo", "nombre": "Imagen", "tipo": "archivo", "extensiones": list(EXTENSIONES_IMAGEN), "defecto": ""},
-            {"id": "posicion", "nombre": "Posición", "tipo": "opcion", "defecto": "abajo_derecha", "opciones": POSICIONES},
+            {"id": "posicion", "nombre": "Posición", "tipo": "opcion", "defecto": "abajo_derecha", "opciones": POSICIONES_LOGO},
+            {"id": "x", "nombre": "Lugar: de izquierda a derecha", "tipo": "num", "min": 0.0, "max": 100.0, "paso": 0.5, "defecto": 50.0, "unidad": "%",
+             "solo_si": {"posicion": "libre"}},
+            {"id": "y", "nombre": "Lugar: de arriba a abajo", "tipo": "num", "min": 0.0, "max": 100.0, "paso": 0.5, "defecto": 50.0, "unidad": "%",
+             "solo_si": {"posicion": "libre"}},
             {"id": "tamano", "nombre": "Tamaño (del ancho)", "tipo": "num", "min": 3, "max": 100, "paso": 1, "defecto": 20, "unidad": "%"},
             {"id": "opacidad", "nombre": "Opacidad", "tipo": "num", "min": 0.05, "max": 1.0, "paso": 0.05, "defecto": 1.0, "unidad": ""},
             {"id": "margen", "nombre": "Margen", "tipo": "num", "min": 0, "max": 20, "paso": 1, "defecto": 3, "unidad": "%"},
+            {"id": "desde", "nombre": "Aparece a los", "tipo": "num", "min": 0.0, "max": 3600.0, "paso": 0.1, "defecto": 0.0, "unidad": "s"},
+            {"id": "hasta", "nombre": "Desaparece a los (0 = al final)", "tipo": "num", "min": 0.0, "max": 3600.0, "paso": 0.1, "defecto": 0.0, "unidad": "s"},
         ],
     },
     "quitar_fondo": {
@@ -460,6 +470,18 @@ def _xy(posicion, margen, ancho_txt, alto_txt):
     return x, y
 
 
+def _tramo(params, t0):
+    """La opcion `enable` de ffmpeg para que el efecto actue solo entre «desde» y «hasta» (segundos del clip; hasta 0 = al final),
+    o "" si actua todo el clip. t0: los segundos que la transicion agrega antes del clip. Los proyectos de antes de la 1.2
+    no tienen desde/hasta en el logo: valen 0 (todo el clip)."""
+    desde, hasta = float(params.get("desde", 0.0)), float(params.get("hasta", 0.0))
+    if hasta > 0:
+        return "enable='between(t,%.3f,%.3f)'" % (desde + t0, max(hasta, desde + 0.1) + t0)
+    if desde > 0:
+        return "enable='gte(t,%.3f)'" % (desde + t0)
+    return ""
+
+
 def subgrafo(tipo, params, ctx, entrada, etiqueta):
     """Para los efectos COMPLEJOS: (lineas del grafo, etiqueta de la salida). `entrada` es la etiqueta de la imagen que llega;
     `etiqueta(prefijo)` da etiquetas nuevas. Las capas externas (imagen, fondo) se leen con `movie=` desde la carpeta de trabajo."""
@@ -468,10 +490,16 @@ def subgrafo(tipo, params, ctx, entrada, etiqueta):
         mx = int(round(ancho * params["margen"] / 100.0))
         w = max(2, int(ancho * params["tamano"] / 100.0 / 2) * 2)
         logo, salida = etiqueta("lg"), etiqueta("vo")
-        x, y = _xy(params["posicion"], mx, ("W", "w"), ("H", "h"))
+        if params["posicion"] == "libre":
+            # x, y en % del lugar que sobra: 0 = pegado al borde izquierdo (o de arriba), 100 = al otro; la imagen nunca se sale
+            x = "(W-w)*%.4f" % (float(params.get("x", 50.0)) / 100.0)
+            y = "(H-h)*%.4f" % (float(params.get("y", 50.0)) / 100.0)
+        else:
+            x, y = _xy(params["posicion"], mx, ("W", "w"), ("H", "h"))
         alfa = ",colorchannelmixer=aa=%.3f" % params["opacidad"] if params["opacidad"] < 0.999 else ""
+        tramo = _tramo(params, ctx.get("t0", 0.0))
         return ["movie=%s,scale=%d:-2,format=rgba%s[%s]" % (ctx["copiar"](params["archivo"]), w, alfa, logo),
-                "[%s][%s]overlay=x='%s':y='%s':format=auto[%s]" % (entrada, logo, x, y, salida)], salida
+                "[%s][%s]overlay=x='%s':y='%s':format=auto%s[%s]" % (entrada, logo, x, y, ":" + tramo if tramo else "", salida)], salida
     if tipo == "quitar_fondo":
         fg, bg, salida = etiqueta("fg"), etiqueta("bg"), etiqueta("vq")
         color = {"verde": "0x00FF00", "azul": "0x0000FF"}[params["color"]]
@@ -580,11 +608,9 @@ def filtro_video(tipo, params, ctx=None):
             op += ["borderw=%d" % max(1, tam // 14), "bordercolor=black"]
         if params["caja"]:
             op += ["box=1", "boxcolor=black@0.55", "boxborderw=%d" % max(2, tam // 3)]
-        t0 = ctx.get("t0", 0.0)          # segundos que la transicion agrega antes del clip
-        if params["hasta"] > 0:
-            op.append("enable='between(t,%.3f,%.3f)'" % (params["desde"] + t0, max(params["hasta"], params["desde"] + 0.1) + t0))
-        elif params["desde"] > 0:
-            op.append("enable='gte(t,%.3f)'" % (params["desde"] + t0))
+        tramo = _tramo(params, ctx.get("t0", 0.0))
+        if tramo:
+            op.append(tramo)
         return "drawtext=" + ":".join(op)
     if tipo == "zoom_lento":
         z, n = float(params["zoom"]), max(1, int(round(ctx["largo"] * ctx["fps_n"])))

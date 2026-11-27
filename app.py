@@ -262,7 +262,7 @@ def _dialogo_tkinter():
         filetypes=[('Video y audio', ' '.join('*.' + e for e in _TODAS)), ('Todos los archivos', '*.*')]))
 
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 _FFMPEG_VERSION = []
 
 
@@ -391,7 +391,7 @@ class API:
              'proyecto_estado': self.proyecto_estado, 'agregar_audio': self.agregar_audio,
              'picos_fuente': self.picos_fuente, 'efectos_catalogo': self.efectos_catalogo,
              'analizar_silencios': self.analizar_silencios, 'medir_volumen': self.medir_volumen,
-             'elegir_lut': self.elegir_lut,
+             'elegir_lut': self.elegir_lut, 'imagen_efecto': self.imagen_efecto,
              'guardar_proyecto': self.guardar_proyecto, 'guardar_proyecto_como': self.guardar_proyecto_como,
              'agregar_medio': self.agregar_medio, 'medio_info': self.medio_info, 'medio_estado': self.medio_estado, 'quitar_medio': self.quitar_medio,
              'elegir_videos': self.elegir_videos,
@@ -629,6 +629,28 @@ class API:
         except Exception as e:
             _registrar('elegir lut fallo: ' + repr(e))
             return {'error': 'No pude abrir el selector de archivos.'}
+
+    def imagen_efecto(self, cid, eid):
+        """URL de la imagen de un efecto «Logo o imagen encima», para mostrarla en el visor. Solo sirve la imagen que la
+        persona eligio para ESE efecto del proyecto abierto (la pagina no puede pedir cualquier archivo del disco)."""
+        if not (isinstance(cid, str) and isinstance(eid, str)):
+            return {'error': 'Pedido no válido.'}
+        with self._lock_proyecto:
+            p = self.proyecto
+            if p is None:
+                return {'error': 'No hay un proyecto abierto.'}
+            try:
+                _, c = p.clip(cid)
+            except Exception:
+                return {'error': 'Ese clip ya no existe.'}
+            e = next((x for x in c.get('efectos', []) if x.get('id') == eid), None)
+            ruta = (e or {}).get('params', {}).get('archivo', '') if e and e.get('tipo') == 'superponer' else ''
+        if not ruta or not os.path.isfile(ruta):
+            return {'error': 'No encuentro la imagen.' if ruta else 'Ese efecto no tiene imagen.'}
+        try:
+            return {'url': self.servidor.publicar_imagen(ruta)}
+        except ValueError:
+            return {'error': 'Ese archivo no es una imagen.'}
 
     def _copia_del_proyecto(self):
         """Una copia liviana (sin el historial de deshacer) para trabajar sin tener tomado el candado del proyecto."""

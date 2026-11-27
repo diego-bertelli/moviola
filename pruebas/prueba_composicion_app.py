@@ -140,6 +140,46 @@ def _correr(w):
     ok(efectos_de(w, "V1")[1]["params"]["archivo"] == logo, "y la imagen elegida queda en el efecto")
     ok(js(w, "document.querySelectorAll('#fx-video .fx')[1].querySelector('.fx__archivo').textContent") == "logo ui.png", "con su nombre a la vista")
 
+    print("=== 3b. el logo en el visor: se ve, se arrastra con el mouse y se elige el tramo ===")
+    ok(esperar(w, "(() => { const i = document.querySelector('#logos-visor img'); return i && i.naturalWidth > 0 && i.style.visibility !== 'hidden'; })()", 10),
+       "el logo se ve en el visor (la imagen la sirve el motor)")
+    caja = js(w, """(() => { const i = document.querySelector('#logos-visor img').getBoundingClientRect();
+                     const m = (document.getElementById('capa-video').hidden ? document.getElementById('capa-cuadro') : document.getElementById('capa-video')).getBoundingClientRect();
+                     return {il: i.left, it: i.top, iw: i.width, ih: i.height, ml: m.left, mt: m.top, mw: m.width, mh: m.height}; })()""")
+    ok(abs(caja["iw"] - caja["mw"] * 0.20) < 2 and abs((caja["il"] + caja["iw"]) - (caja["ml"] + caja["mw"] * 0.97)) < 3
+       and abs((caja["it"] + caja["ih"]) - (caja["mt"] + caja["mh"] - caja["mw"] * 0.03)) < 3,
+       "con la misma cuenta que al exportar: 20 % del ancho, abajo a la derecha, con su margen", str(caja))
+    ok(js(w, "document.querySelectorAll('#fx-video .fx')[1].querySelector('input[data-fxk$=\":x\"]').closest('label').hidden") is True,
+       "los controles del lugar libre se esconden mientras la posicion es una de las 9 fijas")
+    ok(not js(w, "[...document.querySelectorAll('#fx-video .fx')].some(t => /exportar: la vista previa/.test(t.textContent) && t.querySelector('[data-fxk$=\":archivo\"]'))"),
+       "la tarjeta del logo ya no dice que solo se ve al exportar")
+    # arrastrarlo hasta la esquina de arriba a la izquierda (mas alla del borde: queda contra el borde)
+    w.evaluate_js("""(() => { const i = document.querySelector('#logos-visor img'); const r = i.getBoundingClientRect();
+        const ev = (t, x, y) => i.dispatchEvent(new PointerEvent(t, {clientX: x, clientY: y, button: 0, pointerId: 7, bubbles: true}));
+        ev('pointerdown', r.left + 10, r.top + 10); ev('pointermove', r.left - 30, r.top - 30); ev('pointermove', -500, -500); ev('pointerup', -500, -500); })()""")
+    ok(esperar(w, "S.proy.pistas.find(x => x.id === 'V1').clips[0].efectos[1].params.posicion === 'libre'", 5), "al soltarlo, la posicion pasa a «donde la deje con el mouse»")
+    pr = efectos_de(w, "V1")[1]["params"]
+    ok(pr["x"] == 0 and pr["y"] == 0, "y queda contra la esquina de arriba a la izquierda (x 0 %, y 0 %)", str(pr))
+    caja = js(w, """(() => { const i = document.querySelector('#logos-visor img').getBoundingClientRect();
+                     const m = (document.getElementById('capa-video').hidden ? document.getElementById('capa-cuadro') : document.getElementById('capa-video')).getBoundingClientRect();
+                     return {dx: i.left - m.left, dy: i.top - m.top}; })()""")
+    ok(abs(caja["dx"]) < 2 and abs(caja["dy"]) < 2, "el visor lo muestra ahi", str(caja))
+    ok(js(w, "document.querySelectorAll('#fx-video .fx')[1].querySelector('input[data-fxk$=\":x\"]').closest('label').hidden") is False,
+       "y aparecen los controles del lugar, para afinarlo con numeros")
+    # «Aparece a los»: el boton toma el tiempo de la linea roja (a los 2 s del clip)
+    w.evaluate_js("irA(cuadroDe(2.0))")
+    time.sleep(0.8)
+    w.evaluate_js("""document.querySelectorAll('#fx-video .fx')[1].querySelector('[data-fxk$=":desde:aca"]').click()""")
+    ok(esperar(w, "Math.abs(S.proy.pistas.find(x => x.id === 'V1').clips[0].efectos[1].params.desde - 2.0) < 0.051", 5), "«Usar donde está la línea roja» pone el «aparece a los» en 2 s")
+    w.evaluate_js("irA(cuadroDe(1.0))")
+    ok(esperar(w, "!document.querySelector('#logos-visor img')", 5), "antes de los 2 s el visor no muestra el logo")
+    w.evaluate_js("irA(cuadroDe(3.0))")
+    ok(esperar(w, "!!document.querySelector('#logos-visor img')", 5), "y despues si")
+    w.evaluate_js("""(() => { const r = document.querySelectorAll('#fx-video .fx')[1].querySelector('input[data-fxk$=":desde"]'); r.value = '0'; r.dispatchEvent(new Event('change', {bubbles: true})); })()""")
+    ok(esperar(w, "S.proy.pistas.find(x => x.id === 'V1').clips[0].efectos[1].params.desde === 0", 5), "y se vuelve a 0 con el deslizador")
+    ajena = api_ref["api"].imagen_efecto(js(w, "S.proy.pistas.find(x => x.id === 'V1').clips[0].id"), js(w, "S.proy.pistas.find(x => x.id === 'V1').clips[0].efectos[0].id"))
+    ok("error" in ajena and "url" not in ajena, "el motor solo sirve la imagen de un logo: otro efecto (el texto) no da ningun archivo", str(ajena))
+
     print("=== 4. lo guardado desde la interfaz se EXPORTA y se mide ===")
     p = api_ref["api"]._copia_del_proyecto()
     ef = {x["tipo"]: x["params"] for x in p.pista("V1")["clips"][0]["efectos"]}

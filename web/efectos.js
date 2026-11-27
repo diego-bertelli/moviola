@@ -71,6 +71,150 @@ function aplicarEfectosVisor(clip, sobre) {
   visor.style.setProperty('--volteo', f.volteo);
 }
 
+/* ---------- el logo encima («superponer»), en el visor: se ve y se arrastra con el mouse ----------
+   Se dibuja sobre la imagen con la misma cuenta que el exportador (motor/efectos.py, subgrafo): el tamaño es un % del
+   ancho, el margen un % del ancho en los dos sentidos, y el lugar libre un % de lo que sobra (0 = contra un borde,
+   100 = contra el otro). Aproximado como el resto de la vista previa: el visor muestra la fuente, no el encuadre final. */
+const logos = {
+  capa: $('logos-visor'),
+  urls: new Map(),          // ruta de la imagen -> URL que la sirve ('' = no se pudo)
+  pidiendo: new Set(),
+  arrastre: null,           // {img, cid, eid, dx, dy, x0, y0, movio, params}
+  soltado: null,            // {eid, params}: lo que se solto, hasta que vuelve el proyecto con el cambio
+  sobre: null               // {eid, id, valor}: un deslizador que se esta moviendo
+};
+
+function urlLogo(cid, e) {
+  const ruta = e.params.archivo;
+  if (logos.urls.has(ruta)) return logos.urls.get(ruta);
+  if (!logos.pidiendo.has(ruta)) {
+    logos.pidiendo.add(ruta);
+    llamar('imagen_efecto', [cid, e.id])
+      .then((r) => logos.urls.set(ruta, r && r.url ? r.url : ''))
+      .catch(() => logos.urls.set(ruta, ''))
+      .finally(() => { logos.pidiendo.delete(ruta); pintarLogosVisor(); });
+  }
+  return null;
+}
+
+function medioVisor() { return $('capa-video').hidden ? $('capa-cuadro') : $('capa-video'); }
+
+function paramsLogo(e) {
+  let p = Object.assign({ x: 50, y: 50, desde: 0, hasta: 0, margen: 0, opacidad: 1, tamano: 20 }, e.params);
+  if (logos.soltado && logos.soltado.eid === e.id) p = Object.assign(p, logos.soltado.params);
+  if (logos.arrastre && logos.arrastre.eid === e.id && logos.arrastre.params) p = Object.assign(p, logos.arrastre.params);
+  if (logos.sobre && logos.sobre.eid === e.id) p[logos.sobre.id] = logos.sobre.valor;
+  return p;
+}
+
+function colocarLogo(img, p, rm, rv) {
+  const prop = img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0;
+  if (!prop) { img.style.visibility = 'hidden'; return; }      // todavia no cargo: se pinta en su onload
+  img.style.visibility = '';
+  const w = rm.width * p.tamano / 100, h = w * prop;
+  const m = rm.width * (p.margen || 0) / 100;
+  let x, y;
+  if (p.posicion === 'libre') {
+    x = (rm.width - w) * p.x / 100;
+    y = (rm.height - h) * p.y / 100;
+  } else {
+    const [vert, horiz] = p.posicion === 'centro' ? ['centro', 'centro'] : p.posicion.split('_');
+    x = horiz === 'izquierda' ? m : (horiz === 'derecha' ? rm.width - w - m : (rm.width - w) / 2);
+    y = vert === 'arriba' ? m : (vert === 'abajo' ? rm.height - h - m : (rm.height - h) / 2);
+  }
+  img.style.left = (rm.left - rv.left + x) + 'px';
+  img.style.top = (rm.top - rv.top + y) + 'px';
+  img.style.width = w + 'px';
+  img.style.height = h + 'px';
+  img.style.opacity = String(p.opacidad);
+}
+
+function pintarLogosVisor() {
+  const capa = logos.capa;
+  if (!capa) return;
+  const vivos = new Set();
+  if (logos.arrastre) vivos.add(logos.arrastre.img);      // lo que se esta arrastrando no desaparece aunque corra el video
+  const v1 = S.proy ? pistaDe('V1') : null;
+  const tl = S.proy && S.info ? tiempoDe(S.cuadro) : 0;
+  const c = v1 ? clipEn(v1, tl) : null;
+  const medio = medioVisor();
+  const rm = medio.getBoundingClientRect(), rv = $('visor').getBoundingClientRect();
+  if (c && rm.height >= 20) {
+    const local = tl - c.inicio;
+    (c.efectos || []).forEach((e) => {
+      if (!e.activo || e.tipo !== 'superponer' || !e.params.archivo) return;
+      const p = paramsLogo(e);
+      const arrastrado = logos.arrastre && logos.arrastre.eid === e.id;
+      if (!arrastrado && (local < p.desde - 1e-6 || (p.hasta > 0 && local >= Math.max(p.hasta, p.desde + 0.1) - 1e-6))) return;
+      const url = urlLogo(c.id, e);
+      if (!url) return;
+      let img = capa.querySelector('img[data-eid="' + e.id + '"]');
+      if (!img) img = crearLogo(e.id);
+      img.dataset.cid = c.id;
+      if (img.getAttribute('src') !== url) img.src = url;
+      vivos.add(img);
+      colocarLogo(img, p, rm, rv);
+    });
+  }
+  capa.querySelectorAll('img').forEach((img) => { if (!vivos.has(img)) img.remove(); });
+}
+
+function crearLogo(eid) {
+  const img = document.createElement('img');
+  img.className = 'logo-visor';
+  img.alt = '';
+  img.draggable = false;
+  img.dataset.eid = eid;
+  img.title = 'Arrastralo para ponerlo donde quieras';
+  img.addEventListener('load', pintarLogosVisor);
+  img.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    const r = img.getBoundingClientRect();
+    logos.arrastre = { img, cid: img.dataset.cid, eid, dx: ev.clientX - r.left, dy: ev.clientY - r.top, x0: ev.clientX, y0: ev.clientY, movio: false, params: null };
+    try { img.setPointerCapture(ev.pointerId); } catch (err) { /* sin captura igual anda dentro del visor */ }
+    img.classList.add('logo-visor--arrastrando');
+  });
+  img.addEventListener('pointermove', (ev) => {
+    const a = logos.arrastre;
+    if (!a || a.img !== img) return;
+    if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 3) return;
+    a.movio = true;
+    const rm = medioVisor().getBoundingClientRect(), r = img.getBoundingClientRect();
+    const sobraX = rm.width - r.width, sobraY = rm.height - r.height;
+    const pct = (pos, sobra) => (sobra > 0.5 ? Math.round(Math.min(100, Math.max(0, pos / sobra * 100)) * 2) / 2 : 50);
+    a.params = { posicion: 'libre', x: pct(ev.clientX - a.dx - rm.left, sobraX), y: pct(ev.clientY - a.dy - rm.top, sobraY) };
+    pintarLogosVisor();
+  });
+  const soltar = () => {
+    const a = logos.arrastre;
+    if (!a || a.img !== img) return;
+    logos.arrastre = null;
+    img.classList.remove('logo-visor--arrastrando');
+    if (a.movio && a.params) {
+      // hasta que el motor confirma, se queda donde se solto (si no, saltaria un instante al lugar viejo)
+      logos.soltado = { eid: a.eid, params: a.params };
+      operar('cambiar_efecto', [a.cid, a.eid, a.params]).finally(() => {
+        if (logos.soltado && logos.soltado.params === a.params) logos.soltado = null;
+        pintarLogosVisor();
+      });
+    }
+    pintarLogosVisor();
+  };
+  img.addEventListener('pointerup', soltar);
+  img.addEventListener('pointercancel', soltar);
+  logos.capa.appendChild(img);
+  return img;
+}
+
+// la imagen cambia con cada cuadro (el tramo en que aparece): se engancha donde se pinta, como los subtitulos
+const _pintarPosicionLogo = pintarPosicion;
+pintarPosicion = function () {
+  _pintarPosicionLogo();
+  pintarLogosVisor();
+};
+window.addEventListener('resize', pintarLogosVisor);
+
 /* ---------- el panel ---------- */
 function claveFoco() {
   const a = document.activeElement;
@@ -126,7 +270,8 @@ function crearTarjeta(cid, e, def) {
     const campo = document.createElement('label');
     campo.className = 'campo' + (spec.tipo === 'bool' ? ' campo--casilla' : '');
     campo.appendChild(document.createTextNode(spec.nombre));
-    const valor = e.params[spec.id];
+    // un proyecto viejo puede no tener un ajuste nuevo (el «desde» del logo, de la 1.2): vale el de por defecto
+    const valor = e.params[spec.id] !== undefined ? e.params[spec.id] : spec.defecto;
     if (spec.tipo === 'opcion') {
       campo.classList.add('campo--lista');
       const lista = document.createElement('select');
@@ -192,12 +337,44 @@ function crearTarjeta(cid, e, def) {
       rango.addEventListener('input', () => {
         salida.textContent = formatoNumero(rango.value, spec);
         const hallado = buscarClip(cid);
-        if (hallado) aplicarEfectosVisor(hallado.clip, { eid: e.id, id: spec.id, valor: Number(rango.value) });
+        const sobre = { eid: e.id, id: spec.id, valor: Number(rango.value) };
+        if (hallado) aplicarEfectosVisor(hallado.clip, sobre);
+        logos.sobre = sobre;
+        pintarLogosVisor();
       });
-      rango.addEventListener('change', () => operar('cambiar_efecto', [cid, e.id, { [spec.id]: Number(rango.value) }]));
+      rango.addEventListener('change', () => {
+        logos.sobre = null;
+        operar('cambiar_efecto', [cid, e.id, { [spec.id]: Number(rango.value) }]);
+      });
       campo.appendChild(salida);
       campo.appendChild(rango);
+      if (spec.unidad === 's') {
+        // «Aparece a los» / «Desaparece a los»: se puede tomar el tiempo de donde esta parada la linea roja
+        const aca = document.createElement('button');
+        aca.type = 'button';
+        aca.className = 'boton boton--chico fx__aca';
+        aca.textContent = 'Usar donde está la línea roja';
+        campo.classList.add('campo--aca');
+        aca.title = 'Poner este tiempo donde está parada la línea roja (contado desde el principio del clip)';
+        aca.dataset.fxk = e.id + ':' + spec.id + ':aca';
+        aca.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const hallado = buscarClip(cid);
+          if (!hallado) return;
+          const c = hallado.clip;
+          const local = tiempoDe(S.cuadro) - c.inicio;
+          if (local < -1e-6 || local > largoClip(c) + 1e-6) {
+            avisar('La línea roja no está sobre este clip: llevala adonde querés que ' + (spec.id === 'hasta' ? 'desaparezca' : 'aparezca') + '.', 'ojo');
+            return;
+          }
+          const v = Math.min(spec.max, Math.max(spec.min, Math.round(local * 10) / 10));
+          operar('cambiar_efecto', [cid, e.id, { [spec.id]: v }]);
+        });
+        campo.appendChild(aca);
+      }
     }
+    // un ajuste que solo cuenta con cierta opcion (el lugar libre del logo, por ejemplo) se esconde con las otras
+    if (spec.solo_si && Object.keys(spec.solo_si).some((k) => (e.params[k] !== undefined ? e.params[k] : null) !== spec.solo_si[k])) campo.hidden = true;
     cuerpo.appendChild(campo);
   });
   tarjeta.appendChild(cuerpo);
@@ -475,6 +652,7 @@ function pintarEfectos() {
   const audio = cs.find((x) => x.pista.tipo === 'audio') || null;
   pintarSeccionEfectos(fx.video, fx.seccionVideo, 'video', video);
   pintarSeccionEfectos(fx.audio, fx.seccionAudio, 'audio', audio);
+  pintarLogosVisor();
   if (foco) {
     const otra = document.querySelector('[data-fxk="' + foco.replace(/"/g, '') + '"]');
     if (otra) otra.focus();

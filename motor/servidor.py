@@ -31,7 +31,10 @@ _TIPOS_MEDIO = {
     '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
     '.wav': 'audio/wav', '.flac': 'audio/flac', '.ogg': 'audio/ogg',
     '.oga': 'audio/ogg', '.opus': 'audio/ogg', '.weba': 'audio/webm',
+    # imagenes de los efectos (el logo encima), para la vista previa: solo se sirven por /imagen/
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.bmp': 'image/bmp',
 }
+_EXT_IMAGEN = ('.png', '.jpg', '.jpeg', '.webp', '.bmp')
 
 _TIPOS_ESTATICOS = {
     '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -153,7 +156,7 @@ class _Pedido(BaseHTTPRequestHandler):
                 return self._error(405)
             if resto == 'frame':
                 return self._cuadro(con_cuerpo)
-            if resto.startswith(('media/', 'extra/')):
+            if resto.startswith(('media/', 'extra/', 'imagen/')):
                 return self._medio(resto, con_cuerpo)
             return self._estatico(resto or 'index.html', con_cuerpo)
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
@@ -220,12 +223,14 @@ class _Pedido(BaseHTTPRequestHandler):
 
     def _medio(self, resto, con_cuerpo):
         ctx = self.server.ctx
-        partes = resto.split('/', 2)       # media/<token>/<nombre>  o  extra/<token>/<nombre>
+        partes = resto.split('/', 2)       # media/<token>/<nombre>, extra/<token>/<nombre> o imagen/<token>/<nombre>
         ruta = None
         if len(partes) >= 3:
             if partes[0] == 'media':
                 if ctx.medio_ruta and secrets.compare_digest(partes[1].encode(), (ctx.medio_token or '').encode()):
                     ruta = ctx.medio_ruta
+            elif partes[0] == 'imagen':
+                ruta = ctx.imagenes.get(partes[1])    # la imagen de un efecto: cada una con su token
             else:
                 ruta = ctx.extras.get(partes[1])      # audio extra: cada archivo con su propio token
         if not ruta or not os.path.isfile(ruta):
@@ -305,6 +310,7 @@ class ServidorLocal:
         self.medio_ruta = None
         self.medio_token = None
         self.extras = {}            # token -> ruta: audios extra para escuchar en la vista previa
+        self.imagenes = {}          # token -> ruta: imagenes de los efectos (el logo encima) para verlas en el visor
         self.ultimo_latido = time.time()
         self.hubo_latido = False
 
@@ -338,6 +344,20 @@ class ServidorLocal:
                 self.extras.pop(next(iter(self.extras)))
         nombre = os.path.basename(ruta).replace(' ', '_')
         return f'http://127.0.0.1:{self.puerto}/{self.token}/extra/{token}/{nombre}'
+
+    def publicar_imagen(self, ruta):
+        """URL para la imagen de un efecto. Aparte de los audios (no los desplaza) y solo de imagenes. Mismo archivo, misma URL. Tope de 32."""
+        ruta = os.path.abspath(ruta)
+        if os.path.splitext(ruta)[1].lower() not in _EXT_IMAGEN:
+            raise ValueError('no es una imagen')
+        token = next((t for t, r in self.imagenes.items() if r == ruta), None)
+        if token is None:
+            token = secrets.token_urlsafe(16)
+            self.imagenes[token] = ruta
+            while len(self.imagenes) > 32:
+                self.imagenes.pop(next(iter(self.imagenes)))
+        nombre = os.path.basename(ruta).replace(' ', '_')
+        return f'http://127.0.0.1:{self.puerto}/{self.token}/imagen/{token}/{nombre}'
 
     def segundos_sin_latido(self):
         """None si la pagina nunca mando un latido (todavia no cargo)."""

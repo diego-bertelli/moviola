@@ -116,6 +116,44 @@ def main():
     mezcla = tuple(0.5 * m + 0.5 * b for m, b in zip((255, 0, 255), b0))
     ok(cerca(px, mezcla, 22), "con opacidad 0,5 el logo se mezcla mitad y mitad con el video", f"{px} vs {tuple(int(x) for x in mezcla)}")
 
+    # el lugar libre (lo que se arrastra con el mouse en el visor): x, y en % de lo que sobra; 0 = contra un borde, 100 = contra el otro
+    libres = {(0.0, 0.0): (w_l / 2, h_l / 2), (100.0, 100.0): (640 - w_l / 2, 360 - h_l / 2), (25.0, 75.0): ((640 - w_l) * 0.25 + w_l / 2, (360 - h_l) * 0.75 + h_l / 2)}
+    malas = []
+    for (lx, ly), (ex_, ey_) in libres.items():
+        cajas = []
+        for logo in (macizo, otro):
+            p, cid, eid, _ = im.con_efecto(src, "superponer", {"archivo": logo, "posicion": "libre", "x": lx, "y": ly, "margen": 10}, "libre")
+            cajas.append(caja_de_cambios(im.todos_los_cuadros(im.exportar(p, "c_libre")[0])[40], base[40]))
+        if None in cajas:
+            malas.append(((lx, ly), cajas))
+            continue
+        bb = (min(c_[0] for c_ in cajas), min(c_[1] for c_ in cajas), max(c_[2] for c_ in cajas), max(c_[3] for c_ in cajas))
+        if abs((bb[0] + bb[2]) / 2 - ex_) > 5 or abs((bb[1] + bb[3]) / 2 - ey_) > 5:
+            malas.append(((lx, ly), bb, (ex_, ey_)))
+    ok(not malas, "lugar libre: el logo cae en el % elegido de lo que sobra (y el margen no cuenta)", str(malas))
+    try:
+        efectos.limpiar_params("superponer", {"x": 101})
+        ok(False, "un lugar fuera de 0-100 se rechaza")
+    except efectos.ErrorEfecto as e:
+        ok(True, "un lugar fuera de 0-100: error claro", str(e))
+
+    # desde-hasta: el clip dura 6 s (180 cuadros a 30): el logo aparece a los 2 s y desaparece a los 4 s
+    p, cid, eid, _ = im.con_efecto(src, "superponer", {"archivo": macizo, "posicion": "arriba_izquierda", "tamano": 40, "margen": 0, "desde": 2.0, "hasta": 4.0}, "tramo")
+    cuadros = im.todos_los_cuadros(im.exportar(p, "c_tramo")[0])
+    rosa = lambda k: cerca(cuadros[k].getpixel((60, 60)), (255, 0, 255), 12)      # noqa: E731
+    ok(len(cuadros) == 180 and not rosa(30) and not rosa(55) and rosa(65) and rosa(90) and rosa(115) and not rosa(125) and not rosa(170),
+       "desde-hasta: el logo se ve solo entre los 2 y los 4 segundos del clip", str([k for k in (30, 55, 65, 90, 115, 125, 170) if rosa(k)]))
+    p, cid, eid, _ = im.con_efecto(src, "superponer", {"archivo": macizo, "posicion": "arriba_izquierda", "tamano": 40, "margen": 0, "desde": 3.0}, "desde")
+    cuadros = im.todos_los_cuadros(im.exportar(p, "c_desde")[0])
+    ok(not rosa(60) and rosa(100) and rosa(179), "solo «aparece a los 3 s» (hasta 0): se queda hasta el final del clip")
+    # un proyecto de la 1.1 tiene el logo sin x, y, desde ni hasta: se exporta como antes (todo el clip)
+    p, cid, eid, _ = im.con_efecto(src, "superponer", {"archivo": macizo, "posicion": "arriba_izquierda", "tamano": 40, "margen": 0}, "viejo")
+    _, c_ = p.clip(cid)
+    for k in ("x", "y", "desde", "hasta"):
+        c_["efectos"][0]["params"].pop(k)
+    cuadros = im.todos_los_cuadros(im.exportar(p, "c_viejo")[0])
+    ok(rosa(5) and rosa(170), "un logo de un proyecto viejo (sin desde-hasta ni lugar libre) se exporta en todo el clip")
+
     # errores: sin archivo no hace nada; archivo de otro tipo se rechaza; archivo que desaparece antes de exportar: error claro
     p, cid, eid, _ = im.con_efecto(src, "superponer", {}, "vacio")
     a_vacio = im.todos_los_cuadros(im.exportar(p, "c_logo_vacio")[0])

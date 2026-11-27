@@ -1228,6 +1228,14 @@ kbd {
 }
 #subtitulo-visor[hidden] { display: none; }
 
+/* el logo encima (efecto «Logo o imagen encima»): se ve sobre la imagen y se arrastra */
+#logos-visor { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.logo-visor { position: absolute; max-width: none; pointer-events: auto; cursor: grab; user-select: none; touch-action: none; }
+.logo-visor:hover { outline: 1px dashed var(--coral); outline-offset: 2px; }
+.logo-visor--arrastrando { cursor: grabbing; outline: 1px solid var(--coral); outline-offset: 2px; }
+.campo--aca { flex-wrap: wrap; }
+.campo--aca .fx__aca { flex: 0 0 auto; margin-left: 0; }
+
 /* dialogos de subtitulos y escenas */
 #dlg-subtitulos, #dlg-escenas {
   width: min(620px, 94vw);
